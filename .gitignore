@@ -1,0 +1,83 @@
+# Unity generated folders
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# Unity crash reports and asset store downloads
+sysinfo.txt
+*.stackdump
+/[Aa]ssets/[Aa]ssetStoreTools*
+/[Aa]ssets/[Pp]lugins/[Ee]ditor/JetBrains*
+
+# IDE and editor files
+.vs/
+.idea/
+.vscode/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build outputs
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# Crashlytics and analytics
+crashlytics-build.properties
+
+# ---------------------------------------------------------------------------
+# Demo specific
+# ---------------------------------------------------------------------------
+
+# The acceptance report and verification logs are produced by running the
+# generator and verifier, so they are not source.
+/Logs/
+*.log
+
+# Editor automation handshake files. The generator uses these to run inside an
+# already open editor and deletes them as soon as the work is done.
+*.request
+
+# Generated font assets.
+#
+# msyh.ttc is Microsoft YaHei, which is copyrighted and must not be
+# redistributed. KitchenHudCJK.asset is the TextMeshPro atlas built from it and
+# is fully reproducible.
+#
+# On first run the generator finds an installed CJK font (Noto Sans SC, Microsoft
+# YaHei, SimHei or similar) and rebuilds the atlas automatically, so a fresh
+# clone needs no manual step here. See Assets/_Game/Art/说明书_UI_数值_Prefab.md.
+/Assets/_Game/Art/Fonts/msyh.ttc
+/Assets/_Game/Art/Fonts/msyh.ttc.meta
+/Assets/_Game/Art/Fonts/KitchenHudCJK.asset
+/Assets/_Game/Art/Fonts/KitchenHudCJK.asset.meta
+
+# TextMeshPro's example content is 3.4 MB of sample scenes that the demo never
+# references. The essential resources under Resources, Fonts, Shaders and Sprites
+# are kept because the HUD needs them.
+/Assets/TextMesh Pro/Examples & Extras/
+/Assets/TextMesh Pro/Examples & Extras.meta
+/Assets/TextMesh Pro/Documentation/
+/Assets/TextMesh Pro/Documentation.meta
