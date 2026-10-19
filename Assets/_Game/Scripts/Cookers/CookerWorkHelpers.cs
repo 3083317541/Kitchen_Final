@@ -15,16 +15,11 @@ namespace Kitchen.Cookers
     {
         /// <summary>
         /// Locks the highest priority usable recipe for a single item set, such as one raw meat
-        /// slice on a frying pan. Returns false when nothing is available or the output slot is full.
+        /// slice on a frying pan. Returns false when nothing is available.
         /// </summary>
         public static bool TryLockSingleRecipe(CookerRuntime cooker)
         {
             if (cooker == null || cooker.Definition == null)
-            {
-                return false;
-            }
-
-            if (cooker.HasAnyOutput)
             {
                 return false;
             }
@@ -36,7 +31,8 @@ namespace Kitchen.Cookers
                 return false;
             }
 
-            RecipeDefinition usable = recipes.FindUsableRecipe(cooker.Definition.Kind);
+            RecipeDefinition usable = recipes.FindUsableRecipe(
+                cooker.Definition.Kind, cooker.PreferredRecipeId);
             if (usable == null)
             {
                 return false;
@@ -60,11 +56,6 @@ namespace Kitchen.Cookers
         public static bool TryLockAssemblyRecipe(CookerRuntime cooker)
         {
             if (cooker == null || cooker.Definition == null)
-            {
-                return false;
-            }
-
-            if (cooker.HasAnyOutput)
             {
                 return false;
             }

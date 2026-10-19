@@ -50,7 +50,10 @@ namespace Kitchen.EditorTools
         /// because those authoring objects are destroyed after generation: a reference written to one
         /// of them would never reach the asset the runtime loads.
         /// </summary>
-        public static Result Generate(LevelConfig level)
+        public static Result Generate(
+            LevelConfig level,
+            IReadOnlyList<CookerDefinition> cookers,
+            IReadOnlyList<ItemDefinition> items)
         {
             Result result = new Result();
 
@@ -59,59 +62,61 @@ namespace Kitchen.EditorTools
             EnsureFolder(GridFolder);
             EnsureFolder(IngredientFolder);
 
-            GenerateCookers(result);
+            GenerateCookers(cookers, result);
             GenerateStaff(result);
             GenerateGrid(result, level);
-            GenerateItems(result);
+            GenerateItems(items, result);
 
             AssetDatabase.SaveAssets();
+            ReportAssignments(cookers, items);
             return result;
         }
 
-        /// <summary>Loads and returns every saved cooker definition.</summary>
-        private static List<CookerDefinition> LoadSavedCookers()
+        /// <summary>
+        /// Logs how many definitions actually point at a prefab. A silent miss here is what made every
+        /// cooker fall back to the primitive model in one generation pass.
+        /// </summary>
+        private static void ReportAssignments(
+            IReadOnlyList<CookerDefinition> cookers,
+            IReadOnlyList<ItemDefinition> items)
         {
-            List<CookerDefinition> definitions = new List<CookerDefinition>();
-            string[] guids = AssetDatabase.FindAssets("t:CookerDefinition", new[] { DataFolder });
-
-            for (int i = 0; i < guids.Length; i++)
+            int linkedCookers = 0;
+            for (int i = 0; i < cookers.Count; i++)
             {
-                CookerDefinition definition = AssetDatabase.LoadAssetAtPath<CookerDefinition>(
-                    AssetDatabase.GUIDToAssetPath(guids[i]));
-                if (definition != null)
+                if (cookers[i] != null && cookers[i].ViewPrefab != null)
                 {
-                    definitions.Add(definition);
+                    linkedCookers++;
                 }
             }
 
-            return definitions;
-        }
-
-        /// <summary>Loads and returns every saved item definition.</summary>
-        private static List<ItemDefinition> LoadSavedItems()
-        {
-            List<ItemDefinition> definitions = new List<ItemDefinition>();
-            string[] guids = AssetDatabase.FindAssets("t:ItemDefinition", new[] { DataFolder });
-
-            for (int i = 0; i < guids.Length; i++)
+            int linkedItems = 0;
+            for (int i = 0; i < items.Count; i++)
             {
-                ItemDefinition definition = AssetDatabase.LoadAssetAtPath<ItemDefinition>(
-                    AssetDatabase.GUIDToAssetPath(guids[i]));
-                if (definition != null)
+                if (items[i] != null && items[i].ViewPrefab != null)
                 {
-                    definitions.Add(definition);
+                    linkedItems++;
                 }
             }
 
-            return definitions;
+            string message = $"[KitchenPrefabGenerator] {linkedCookers}/{cookers.Count} cooker(s) and " +
+                $"{linkedItems}/{items.Count} item(s) now point at a prefab.";
+
+            if (linkedCookers == cookers.Count && linkedItems == items.Count)
+            {
+                Debug.Log(message);
+            }
+            else
+            {
+                Debug.LogError(message);
+            }
         }
 
-        // ------------------------------------------------------------------ cookers
-
-        private static void GenerateCookers(Result result)
+        /// <summary>
+        /// Writes one prefab per cooker definition and assigns it back, so the runtime instantiates the
+        /// prefab instead of building a fresh model.
+        /// </summary>
+        private static void GenerateCookers(IReadOnlyList<CookerDefinition> definitions, Result result)
         {
-            List<CookerDefinition> definitions = LoadSavedCookers();
-
             for (int i = 0; i < definitions.Count; i++)
             {
                 CookerDefinition definition = definitions[i];
@@ -259,10 +264,8 @@ namespace Kitchen.EditorTools
 
         // ------------------------------------------------------------------ items
 
-        private static void GenerateItems(Result result)
+        private static void GenerateItems(IReadOnlyList<ItemDefinition> definitions, Result result)
         {
-            List<ItemDefinition> definitions = LoadSavedItems();
-
             for (int i = 0; i < definitions.Count; i++)
             {
                 ItemDefinition item = definitions[i];

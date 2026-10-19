@@ -70,11 +70,27 @@ namespace Kitchen.Recipes
         /// </summary>
         public RecipeDefinition FindUsableRecipe(CookerKind kind)
         {
-            InventoryManager inventory = Runtime.Inventory;
+            return FindUsableRecipe(kind, null);
+        }
+
+        /// <summary>
+        /// Finds the usable recipe of a kind, honouring the player's choice.
+        ///
+        /// When a recipe is pinned only that one is considered: if its ingredients run out the station
+        /// waits instead of silently switching to a different product, which is the whole point of
+        /// pinning it.
+        /// </summary>
+        public RecipeDefinition FindUsableRecipe(CookerKind kind, string preferredRecipeId)
+        {
             for (int i = 0; i < recipes.Count; i++)
             {
                 RecipeDefinition recipe = recipes[i];
                 if (recipe.CookerKind != kind)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(preferredRecipeId) && recipe.Id != preferredRecipeId)
                 {
                     continue;
                 }
@@ -86,6 +102,22 @@ namespace Kitchen.Recipes
             }
 
             return null;
+        }
+
+        /// <summary>Every recipe a cooker of this kind could run, in catalogue order.</summary>
+        public List<RecipeDefinition> RecipesFor(CookerKind kind)
+        {
+            List<RecipeDefinition> result = new List<RecipeDefinition>();
+
+            for (int i = 0; i < recipes.Count; i++)
+            {
+                if (recipes[i] != null && recipes[i].CookerKind == kind)
+                {
+                    result.Add(recipes[i]);
+                }
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -107,6 +139,12 @@ namespace Kitchen.Recipes
             {
                 RecipeDefinition candidate = recipes[i];
                 if (candidate.CookerKind != cooker.Definition.Kind)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(cooker.PreferredRecipeId) &&
+                    candidate.Id != cooker.PreferredRecipeId)
                 {
                     continue;
                 }
@@ -210,8 +248,9 @@ namespace Kitchen.Recipes
         /// conversion can never lose material. Reserved units are spent directly, because a cooker
         /// that reserved its input has already removed it from the free stock.
         ///
-        /// This method is the only place that creates finished goods; deciding where a finished unit
-        /// is displayed is the caller's job.
+        /// This method creates the finished goods and reports them; it does not put them anywhere. The
+        /// caller decides where they live — a cooker output slot, or the shared inventory — and because
+        /// there is exactly one owner, an item can neither be duplicated nor lost.
         /// </summary>
         public bool TryConvert(
             CookerRuntime cooker,
@@ -249,7 +288,9 @@ namespace Kitchen.Recipes
                     continue;
                 }
 
-                inventory.Add(outputs[i].Item, outputs[i].Count);
+                // The stacks are produced here but not credited to the inventory: where a finished unit
+                // lives is the caller's decision, and crediting it here as well as in the caller's
+                // output slot made collecting duplicate the item.
                 produced.Add(outputs[i]);
             }
 

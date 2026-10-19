@@ -68,6 +68,10 @@ namespace Kitchen.EditorTools
 
             canvasGo.AddComponent<GraphicRaycaster>();
 
+            // The scale control lives on the canvas so it scales exactly the canvas it belongs to.
+            HudScaler scalerComponent = canvasGo.AddComponent<HudScaler>();
+            scalerComponent.Configure(canvas, new Vector2(CanvasWidth, CanvasHeight));
+
             if (UnityEngine.Object.FindObjectOfType<EventSystem>() == null)
             {
                 GameObject eventSystem = new GameObject("EventSystem");
@@ -146,6 +150,9 @@ namespace Kitchen.EditorTools
             Text(infoRow, "InventoryText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f);
             Text(infoRow, "OrderCountText", "完成 0 / 失败 0", FontSmall, TextMuted, TextAlignmentOptions.MidlineRight, 300f);
             Text(infoRow, "TimeText", "00:00", FontBody, TextColor, TextAlignmentOptions.MidlineRight, 140f);
+            Text(infoRow, "UiScaleText", "100%", FontSmall, TextMuted, TextAlignmentOptions.MidlineRight, 90f);
+            SmallButton(infoRow, "UiScaleDownButton", "UiScaleDownButtonLabel", "−", ButtonColorNeutral);
+            SmallButton(infoRow, "UiScaleUpButton", "UiScaleUpButtonLabel", "+", ButtonColorNeutral);
         }
 
         private static void BuildCookerShopPanel(Transform canvas)
@@ -196,21 +203,22 @@ namespace Kitchen.EditorTools
             RectTransform panel = Panel(canvas, "SelectionPanel", new Vector2(1f, 1f), new Vector2(1f, 1f),
                 new Vector2(-24f, -560f), PanelColor).GetComponent<RectTransform>();
             panel.pivot = new Vector2(1f, 1f);
-            panel.sizeDelta = new Vector2(680f, 250f);
+            panel.sizeDelta = new Vector2(680f, 340f);
 
             RectTransform content = VerticalGroup(panel, "SelectionContent", 10f, TextAlignmentOptions.TopLeft, 22f);
 
             Text(content, "SelectionTitleText", "选中信息", FontBody, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 34f);
 
-            RectTransform staff = Card(content, "StaffSection", 96f);
-            Text(staff, "StaffNameText", "厨师", FontBody, TextColor, TextAlignmentOptions.MidlineLeft, 0f, 34f);
-            Text(staff, "StaffPositionText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 28f);
-            Text(staff, "StaffHintText", "-", FontSmall, TextMuted, TextAlignmentOptions.TopLeft, 0f, 30f);
+            RectTransform staff = CardColumn(content, "StaffSection", 112f);
+            Text(staff, "StaffNameText", "厨师", FontBody, TextColor, TextAlignmentOptions.MidlineLeft, 0f, 30f);
+            Text(staff, "StaffPositionText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 26f);
+            Text(staff, "StaffHintText", "-", FontSmall, TextMuted, TextAlignmentOptions.TopLeft, 0f, 42f, true);
 
-            RectTransform cooker = Card(content, "CookerSection", 74f);
-            Text(cooker, "CookerNameText", "厨具", FontBody, TextColor, TextAlignmentOptions.MidlineLeft, 0f, 32f);
+            RectTransform cooker = CardColumn(content, "CookerSection", 112f);
+            Text(cooker, "CookerNameText", "厨具", FontBody, TextColor, TextAlignmentOptions.MidlineLeft, 0f, 30f);
             Text(cooker, "CookerStateText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 26f);
             Text(cooker, "CookerPositionText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 26f);
+            Button(cooker, "RecipeButton", "RecipeButtonLabel", "加工：自动", new Vector2(0f, 36f), ButtonColorNeutral, FontSmall);
         }
 
         private static void BuildProgressPanel(Transform canvas)
@@ -292,6 +300,37 @@ namespace Kitchen.EditorTools
         }
 
         // ------------------------------------------------------------------ primitives
+
+        /// <summary>
+        /// A card whose children stack vertically. The horizontal variant suits a row of buttons; a
+        /// card holding several labelled lines needs this one, otherwise the labels are squeezed into
+        /// columns and drawn over each other.
+        /// </summary>
+        private static RectTransform CardColumn(Transform parent, string name, float height)
+        {
+            GameObject go = new GameObject(name, typeof(RectTransform));
+            RectTransform rect = go.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+
+            Image image = go.AddComponent<Image>();
+            image.color = CardColor;
+
+            LayoutElement element = go.AddComponent<LayoutElement>();
+            element.minHeight = height;
+            element.preferredHeight = height;
+            element.flexibleWidth = 1f;
+
+            VerticalLayoutGroup group = go.AddComponent<VerticalLayoutGroup>();
+            group.spacing = 4f;
+            group.childAlignment = TextAnchor.MiddleLeft;
+            group.childControlWidth = true;
+            group.childControlHeight = true;
+            group.childForceExpandWidth = true;
+            group.childForceExpandHeight = false;
+            group.padding = new RectOffset(12, 12, 6, 6);
+
+            return rect;
+        }
 
         /// <summary>
         /// A panel anchored between two points, positioned and sized by the caller. Panels are laid
@@ -471,6 +510,31 @@ namespace Kitchen.EditorTools
 
             RectTransform labelRect = VerticalGroup(rect, $"{labelName}Holder", 0f, TextAlignmentOptions.Center, 6);
             Text(labelRect, labelName, label, fontSize, new Color(0.97f, 0.98f, 1f), TextAlignmentOptions.Center);
+            return button;
+        }
+
+        /// <summary>
+        /// A fixed width button, for controls that must not stretch inside a layout group.
+        /// </summary>
+        private static Button SmallButton(
+            Transform parent,
+            string objectName,
+            string labelName,
+            string label,
+            Color background)
+        {
+            Button button = Button(parent, objectName, labelName, label, new Vector2(56f, 28f), background, FontSmall);
+
+            LayoutElement element = button.GetComponent<LayoutElement>();
+            if (element != null)
+            {
+                element.flexibleWidth = 0f;
+                element.minWidth = 56f;
+                element.preferredWidth = 56f;
+                element.minHeight = 28f;
+                element.preferredHeight = 28f;
+            }
+
             return button;
         }
 
@@ -678,6 +742,14 @@ namespace Kitchen.EditorTools
 
             Set(so, "notificationPanel", FindPanel(canvas, "NotificationPanel"));
             Set(so, "notificationText", Find<TMP_Text>(canvas, "NotificationText"));
+
+            Set(so, "hudScaler", canvas.GetComponent<HudScaler>());
+            Set(so, "uiScaleDownButton", Find<Button>(canvas, "UiScaleDownButton"));
+            Set(so, "uiScaleUpButton", Find<Button>(canvas, "UiScaleUpButton"));
+            Set(so, "uiScaleText", Find<TMP_Text>(canvas, "UiScaleText"));
+
+            Set(so, "recipeButton", Find<Button>(canvas, "RecipeButton"));
+            Set(so, "recipeButtonLabel", Find<TMP_Text>(canvas, "RecipeButtonLabel"));
 
             Set(so, "levelClearPanel", FindPanel(canvas, "LevelClearPanel"));
             Set(so, "levelClearTitleText", Find<TMP_Text>(canvas, "LevelClearTitleText"));

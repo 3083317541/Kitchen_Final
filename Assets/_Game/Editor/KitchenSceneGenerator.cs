@@ -276,7 +276,10 @@ namespace Kitchen.EditorTools
                 // running game, without regenerating anything.
                 LevelConfig prefabLevel = AssetDatabase.LoadAssetAtPath<LevelConfig>(
                     KitchenDataAssetGenerator.LevelAssetPath);
-                KitchenPrefabGenerator.Result prefabs = KitchenPrefabGenerator.Generate(prefabLevel);
+                KitchenPrefabGenerator.Result prefabs = KitchenPrefabGenerator.Generate(
+                    prefabLevel,
+                    data.Content != null ? data.Content.Cookers : new List<CookerDefinition>(),
+                    data.Content != null ? data.Content.Items : new List<ItemDefinition>());
 
                 // Every level needs the art links, not just the one the scene was authored from:
                 // otherwise level 2 and 3 would silently fall back to the primitive chef and floor.

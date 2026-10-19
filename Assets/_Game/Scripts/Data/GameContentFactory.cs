@@ -56,6 +56,10 @@ namespace Kitchen.Data
             public const string FryingPan = "frying_pan";
             public const string AssemblyTable = "assembly_table";
             public const string DishWasher = "dish_washer";
+
+            // Recipe ids the player can pin on a station.
+            public const string ChopCabbage = "chop_cabbage";
+            public const string ChopTomato = "chop_tomato";
         }
 
         /// <summary>All content produced by <see cref="CreateRuntimeContent"/>.</summary>

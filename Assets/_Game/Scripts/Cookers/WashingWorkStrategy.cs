@@ -35,7 +35,20 @@ namespace Kitchen.Cookers
         /// </summary>
         protected override void ProduceOutput(CookerRuntime cooker, IReadOnlyList<ItemStack> produced)
         {
-            // Intentionally empty: the plate is already in the shared inventory.
+            // A pass through appliance: the clean plate goes straight into the kitchen stock instead of
+            // waiting in an output slot, otherwise the washer would stop after a single plate.
+            if (produced == null || cooker.Inventory == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < produced.Count; i++)
+            {
+                if (produced[i].IsValid)
+                {
+                    cooker.Inventory.Add(produced[i].Item, produced[i].Count);
+                }
+            }
         }
 
         protected override string WaitingText(CookerRuntime cooker)

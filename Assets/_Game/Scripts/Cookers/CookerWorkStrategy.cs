@@ -180,6 +180,8 @@ namespace Kitchen.Cookers
             {
                 if (produced[i].IsValid)
                 {
+                    // Held in the cooker's output slot until the player collects it. Work does not stop
+                    // for this, so a supported station keeps processing.
                     cooker.AddOutput(produced[i].Item, produced[i].Count);
                 }
             }

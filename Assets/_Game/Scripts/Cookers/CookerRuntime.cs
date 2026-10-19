@@ -60,6 +60,15 @@ namespace Kitchen.Cookers
         /// <summary>Recipe currently locked in for conversion, or null.</summary>
         public RecipeDefinition LockedRecipe { get; internal set; }
 
+        /// <summary>
+        /// Recipe the player wants this cooker to run, or null for "pick automatically".
+        ///
+        /// A station can usually do several things — a chopping station will take cabbage, tomato, bread
+        /// or meat — so letting the player pin one is the difference between a usable station and one
+        /// that chews through the wrong ingredient.
+        /// </summary>
+        public string PreferredRecipeId { get; set; }
+
         /// <summary>Discrete progress steps already completed (chop ticks).</summary>
         public int WorkTicks { get; internal set; }
 

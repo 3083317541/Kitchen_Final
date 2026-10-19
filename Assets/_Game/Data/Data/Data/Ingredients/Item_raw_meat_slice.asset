@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46cb77617f7514e41878f3c8d90893e6, type: 3}
+  m_Name: Item_raw_meat_slice
+  m_EditorClassIdentifier: 
+  id: raw_meat_slice
+  displayName: "\u751F\u8089\u7247"
+  category: 1
+  viewColor: {r: 0.92, g: 0.56, b: 0.58, a: 1}
+  viewScale: 0.2
+  viewPrefab: {fileID: 193132922225380158, guid: 0155fa90304415740a83e8fb15372180, type: 3}
+  viewMaterial: {fileID: 0}
+  icon: {fileID: 0}

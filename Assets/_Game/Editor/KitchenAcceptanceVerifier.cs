@@ -242,6 +242,7 @@ namespace Kitchen.EditorTools
             ScenarioArtPrefabs();
             ScenarioMaterials();
             ScenarioCampaign();
+            ScenarioCookerControls();
             ScenarioFinalConsistency();
         }
 
@@ -334,6 +335,7 @@ namespace Kitchen.EditorTools
 
             ExpectPanelsInsideCanvas(panelNames, canvas, canvasRect);
             ScenarioLabelOverlap(canvas);
+            ScenarioHudScale(canvas);
 
             // Text fitting: a label that needs more width than its rectangle allows is clipped or
             // pushed over a neighbour.
@@ -1589,6 +1591,130 @@ namespace Kitchen.EditorTools
             // Leave nothing behind for the scenarios that follow.
             view.ClearHighlights();
             runtime.AddMoney(moneyBefore - runtime.Money);
+        }
+
+        /// <summary>
+        /// A supported station must keep processing, and the player must be able to choose what it
+        /// processes.
+        ///
+        /// Both were reported from play: a station stopped after one item, and with cabbage and tomato
+        /// both in stock the player could not steer it.
+        /// </summary>
+        private static void ScenarioCookerControls()
+        {
+            CookerRuntime cooker = FindCooker(GameContentFactory.Ids.ChoppingStation);
+            if (cooker == null)
+            {
+                Record("cooker_keeps_working", false, "no chopping station found.");
+                return;
+            }
+
+            // --- a station keeps going instead of stopping after one unit -----------------------
+            ResetInventory();
+            runtime.GrantItem(Item(GameContentFactory.Ids.Cabbage), 2);
+            cooker.ClearOutputs();
+            cooker.PreferredRecipeId = GameContentFactory.Ids.ChopCabbage;
+
+            MoveStaffTo(0, cooker.GridPosition);
+
+            // 10 cuts at 0.3 s is 3 s per slice; 9 s covers two with margin.
+            Advance(9f);
+
+            int held = cooker.GetOutputCount(Item(GameContentFactory.Ids.CabbageSlice));
+            int stocked = runtime.Inventory.TotalCount(Item(GameContentFactory.Ids.CabbageSlice));
+            bool keptWorking = held + stocked >= 2;
+            Expect("cooker_keeps_working", keptWorking,
+                $"after 9 s with 2 cabbages the station produced {held} slice(s) held and {stocked} in stock " +
+                $"(expected 2; it used to stop after the first because its output slot was full).");
+
+            // --- the chosen recipe is the one that runs ----------------------------------------
+            ResetInventory();
+            runtime.GrantItem(Item(GameContentFactory.Ids.Cabbage), 1);
+            runtime.GrantItem(Item(GameContentFactory.Ids.Tomato), 1);
+            cooker.ClearOutputs();
+            cooker.ForgetLock();
+            cooker.PreferredRecipeId = GameContentFactory.Ids.ChopTomato;
+
+            Advance(0.5f);
+
+            bool lockedTomato = cooker.LockedRecipe != null &&
+                cooker.LockedRecipe.Id == GameContentFactory.Ids.ChopTomato;
+            Expect("recipe_choice_is_honoured", lockedTomato,
+                $"pinned '{GameContentFactory.Ids.ChopTomato}', locked recipe = " +
+                $"{(cooker.LockedRecipe != null ? cooker.LockedRecipe.Id : "<none>")} " +
+                $"while cabbage was also available.");
+
+            // --- clearing the choice falls back to automatic selection -------------------------
+            cooker.ForgetLock();
+            cooker.PreferredRecipeId = null;
+            Advance(0.5f);
+
+            bool automatic = cooker.LockedRecipe != null;
+            Expect("recipe_choice_can_be_cleared", automatic,
+                $"with no pin the station locked {(cooker.LockedRecipe != null ? cooker.LockedRecipe.Id : "<none>")} automatically.");
+
+            cooker.ForgetLock();
+            cooker.PreferredRecipeId = null;
+            cooker.ClearOutputs();
+            ParkAllStaff();
+        }
+
+        /// <summary>
+        /// The HUD scale control must actually change the canvas reference resolution, and must clamp so
+        /// the HUD cannot be scaled into uselessness.
+        /// </summary>
+        private static void ScenarioHudScale(Canvas canvas)
+        {
+            if (canvas == null)
+            {
+                Record("hud_scale_changes_canvas", false, "the scene has no Canvas.");
+                return;
+            }
+
+            UnityEngine.UI.CanvasScaler scaler = canvas.GetComponent<UnityEngine.UI.CanvasScaler>();
+            if (scaler == null)
+            {
+                Record("hud_scale_changes_canvas", false, "the canvas has no CanvasScaler.");
+                return;
+            }
+
+            Vector2 before = scaler.referenceResolution;
+            float savedScale = PlayerPrefs.GetFloat(Kitchen.UI.HudScaler.PrefsKey, 1f);
+
+            // The scaler lives on the canvas, so the harness does not need a UI manager to exercise it.
+            Kitchen.UI.HudScaler hudScaler = canvas.GetComponent<Kitchen.UI.HudScaler>();
+            if (hudScaler == null)
+            {
+                hudScaler = canvas.gameObject.AddComponent<Kitchen.UI.HudScaler>();
+            }
+
+            hudScaler.Configure(canvas, before);
+            hudScaler.SetScale(1f, false);
+
+            hudScaler.Step(0.2f);
+            Vector2 bigger = scaler.referenceResolution;
+
+            hudScaler.Step(-0.4f);
+            Vector2 smaller = scaler.referenceResolution;
+
+            // A larger HUD scale means a smaller reference resolution, and vice versa.
+            bool changed = bigger.x < before.x && smaller.x > before.x;
+
+            // The clamp has to hold, otherwise the HUD can be scaled into uselessness.
+            hudScaler.SetScale(99f, false);
+            bool clampedHigh = hudScaler.Scale <= Kitchen.UI.HudScaler.MaxScale + 0.001f;
+            hudScaler.SetScale(-99f, false);
+            bool clampedLow = hudScaler.Scale >= Kitchen.UI.HudScaler.MinScale - 0.001f;
+
+            Expect("hud_scale_changes_canvas", changed && clampedHigh && clampedLow,
+                $"reference {before.x:0}x{before.y:0} -> bigger HUD {bigger.x:0} -> smaller HUD {smaller.x:0}, " +
+                $"clamped at both ends = {clampedHigh && clampedLow}.");
+
+            // Restore whatever the player had.
+            hudScaler.SetScale(savedScale, false);
+            scaler.referenceResolution = before;
+            PlayerPrefs.SetFloat(Kitchen.UI.HudScaler.PrefsKey, savedScale);
+            PlayerPrefs.Save();
         }
 
         private static void ScenarioChopping()

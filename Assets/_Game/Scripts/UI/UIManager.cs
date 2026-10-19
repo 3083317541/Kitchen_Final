@@ -60,6 +60,15 @@ namespace Kitchen.UI
         [SerializeField] private TMP_Text cookerPositionText;
         [SerializeField] private TMP_Text cookerInputText;
         [SerializeField] private TMP_Text cookerOutputText;
+        [SerializeField] private Button recipeButton;
+        [SerializeField] private TMP_Text recipeButtonLabel;
+
+        [Header("HUD scale")]
+        [Tooltip("Component that owns the canvas scale. Lives on the canvas, not here.")]
+        [SerializeField] private HudScaler hudScaler;
+        [SerializeField] private Button uiScaleDownButton;
+        [SerializeField] private Button uiScaleUpButton;
+        [SerializeField] private TMP_Text uiScaleText;
         [SerializeField] private Button moveCookerButton;
         [SerializeField] private Button collectButton;
         [SerializeField] private Button sellCookerButton;
@@ -165,6 +174,27 @@ namespace Kitchen.UI
                 collectButton.onClick.RemoveListener(OnCollectClicked);
                 collectButton.onClick.AddListener(OnCollectClicked);
             }
+
+            if (recipeButton != null)
+            {
+                recipeButton.onClick.RemoveListener(OnCycleRecipeClicked);
+                recipeButton.onClick.AddListener(OnCycleRecipeClicked);
+            }
+
+            if (uiScaleDownButton != null)
+            {
+                uiScaleDownButton.onClick.RemoveListener(OnUiScaleDown);
+                uiScaleDownButton.onClick.AddListener(OnUiScaleDown);
+            }
+
+            if (uiScaleUpButton != null)
+            {
+                uiScaleUpButton.onClick.RemoveListener(OnUiScaleUp);
+                uiScaleUpButton.onClick.AddListener(OnUiScaleUp);
+            }
+
+            hudScaler?.LoadAndApply();
+            RefreshUiScaleText();
 
             if (sellCookerButton != null)
             {
@@ -329,6 +359,106 @@ namespace Kitchen.UI
 
             input.EnterMoveCookerMode(cooker);
             ShowNotification("移动厨具：WASD 或点击相邻格子，Esc 取消。", MessageKind.Info);
+            RefreshValues();
+        }
+
+        /// <summary>
+        /// Steps the selected cooker through 自动 and each recipe it can run.
+        ///
+        /// A single cycling button is used rather than a list so the panel keeps its size: it is anchored
+        /// near the bottom of the screen and has no room to grow.
+        /// </summary>
+        // ------------------------------------------------------------------ HUD scale
+
+        private void OnUiScaleDown()
+        {
+            StepUiScale(-0.1f);
+        }
+
+        private void OnUiScaleUp()
+        {
+            StepUiScale(0.1f);
+        }
+
+        /// <summary>Steps the HUD scale and applies it immediately.</summary>
+        public void StepUiScale(float delta)
+        {
+            if (hudScaler == null)
+            {
+                hudScaler = GetComponentInChildren<HudScaler>();
+            }
+
+            if (hudScaler == null)
+            {
+                ShowNotification("这个场景没有界面缩放组件。", MessageKind.Warning);
+                return;
+            }
+
+            hudScaler.Step(delta);
+            RefreshUiScaleText();
+
+            ShowNotification($"界面缩放：{(hudScaler.Scale * 100f):0}%", MessageKind.Info);
+        }
+
+        private void RefreshUiScaleText()
+        {
+            if (uiScaleText == null)
+            {
+                return;
+            }
+
+            if (hudScaler == null)
+            {
+                hudScaler = GetComponentInChildren<HudScaler>();
+            }
+
+            uiScaleText.text = hudScaler != null ? $"{(hudScaler.Scale * 100f):0}%" : "-";
+        }
+
+        private void OnCycleRecipeClicked()
+        {
+            if (runtime == null || runtime.Cookers == null || runtime.Recipes == null)
+            {
+                return;
+            }
+
+            CookerRuntime cooker = runtime.Cookers.Selected;
+            if (cooker == null || cooker.Definition == null)
+            {
+                ShowNotification("请先选中一个厨具。", MessageKind.Warning);
+                return;
+            }
+
+            List<Kitchen.Data.RecipeDefinition> options =
+                runtime.Recipes.RecipesFor(cooker.Definition.Kind);
+
+            if (options.Count <= 1)
+            {
+                ShowNotification("这个厨具只有一种加工方式。", MessageKind.Info);
+                RefreshValues();
+                return;
+            }
+
+            // auto -> recipe 0 -> recipe 1 -> ... -> auto
+            int current = -1;
+            for (int i = 0; i < options.Count; i++)
+            {
+                if (options[i].Id == cooker.PreferredRecipeId)
+                {
+                    current = i;
+                    break;
+                }
+            }
+
+            current++;
+            cooker.PreferredRecipeId = current < options.Count ? options[current].Id : null;
+
+            ShowNotification(
+                current < options.Count
+                    ? $"加工方式：{options[current].DisplayName}"
+                    : "加工方式：自动",
+                MessageKind.Info);
+
             RefreshValues();
         }
 
@@ -728,6 +858,33 @@ namespace Kitchen.UI
                 if (cookerOutputText != null)
                 {
                     cookerOutputText.text = $"产出：{(runtime.Cookers != null ? runtime.Cookers.DescribeOutputs(cooker) : "-")}";
+                }
+
+                if (recipeButton != null)
+                {
+                    recipeButton.interactable = true;
+                }
+
+                if (recipeButtonLabel != null)
+                {
+                    string label = "自动";
+
+                    if (!string.IsNullOrEmpty(cooker.PreferredRecipeId) && runtime.Recipes != null)
+                    {
+                        List<Kitchen.Data.RecipeDefinition> options =
+                            runtime.Recipes.RecipesFor(cooker.Definition.Kind);
+
+                        for (int i = 0; i < options.Count; i++)
+                        {
+                            if (options[i].Id == cooker.PreferredRecipeId)
+                            {
+                                label = options[i].DisplayName;
+                                break;
+                            }
+                        }
+                    }
+
+                    recipeButtonLabel.text = $"加工：{label}";
                 }
             }
         }

@@ -114,11 +114,6 @@ namespace Kitchen.Cookers
         /// <summary>Reserves one raw item and locks the matching recipe. Returns false when none is available.</summary>
         private static bool TryLockNextItem(CookerRuntime cooker, RecipeManager recipes)
         {
-            if (cooker.HasAnyOutput)
-            {
-                // The station holds on to finished produce; the player must take it out first.
-                return false;
-            }
 
             if (cooker.Definition == null)
             {
@@ -126,7 +121,8 @@ namespace Kitchen.Cookers
             }
 
             InventoryManager inventory = cooker.Inventory;
-            RecipeDefinition usable = recipes.FindUsableRecipe(cooker.Definition.Kind);
+            RecipeDefinition usable = recipes.FindUsableRecipe(
+                cooker.Definition.Kind, cooker.PreferredRecipeId);
             if (usable == null || inventory == null)
             {
                 return false;
