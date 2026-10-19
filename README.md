@@ -112,7 +112,8 @@ Assets/_Game
 
 | 文档 | 内容 |
 |---|---|
-| [说明书_UI_数值_Prefab.md](Assets/_Game/Art/说明书_UI_数值_Prefab.md) | **主说明书**：怎么改 UI、数值、Prefab |
+| [工程说明.md](Assets/_Game/Art/工程说明.md) | **工程说明**：全部运行逻辑与实现思路、架构决策、不变量、扩展指南 |
+| [说明书_UI_数值_Prefab.md](Assets/_Game/Art/说明书_UI_数值_Prefab.md) | **操作手册**：怎么改 UI、数值、Prefab |
 | [美术资源替换指南.md](Assets/_Game/Art/美术资源替换指南.md) | 美术接口逐字段清单 |
 
 要点：
