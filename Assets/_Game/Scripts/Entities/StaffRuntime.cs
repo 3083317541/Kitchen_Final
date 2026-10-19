@@ -37,6 +37,11 @@ namespace Kitchen.Entities
 
         public bool IsSelected { get; internal set; }
 
+        public int AssignedCookerId { get; internal set; }
+
+        public Cookers.CookerRuntime AssignedCooker =>
+            Owner != null && Owner.Cookers != null ? Owner.Cookers.GetCooker(AssignedCookerId) : null;
+
         /// <summary>The runtime that owns this employee.</summary>
         public Runtime.GameRuntime Owner { get; internal set; }
 

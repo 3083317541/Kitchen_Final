@@ -65,7 +65,11 @@ namespace Kitchen.Core
         ReadyToCollect = 3,
 
         /// <summary>Output slot is occupied; blocked until it is emptied.</summary>
-        Blocked = 4
+        Blocked = 4,
+        Preparing = 5,
+        Collecting = 6,
+        Burnt = 7,
+        Cleaning = 8
     }
 
     /// <summary>Lifecycle of an order.</summary>

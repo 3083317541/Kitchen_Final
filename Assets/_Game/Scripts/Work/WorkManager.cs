@@ -9,9 +9,8 @@ namespace Kitchen.Work
     /// <summary>
     /// Advances every cooker exactly once per frame, in a single loop.
     ///
-    /// The rule that matters: a cooker only makes progress while a staff member is standing on its
-    /// cell. When it is inactive the strategy is skipped entirely, so the accumulated progress stays
-    /// frozen and resumes when the staff member returns. No cooker owns a timer of its own.
+    /// Manual work pauses without an assigned employee. Timed heating also advances unattended
+    /// phases through its strategy. No cooker owns a timer of its own.
     /// </summary>
     [DisallowMultipleComponent]
     public class WorkManager : GameSystem
@@ -83,6 +82,7 @@ namespace Kitchen.Work
             }
 
             IReadOnlyList<CookerRuntime> list = cookers.Cookers;
+            cookers.Tick(0f);
             for (int i = 0; i < list.Count; i++)
             {
                 CookerRuntime cooker = list[i];
@@ -99,15 +99,15 @@ namespace Kitchen.Work
                     continue;
                 }
 
-                if (!cooker.IsActive)
+                if (!cooker.IsActive && cooker.Definition.WorkType != WorkType.Timed)
                 {
                     // Paused: no progress is applied and no material is touched.
                     strategy.OnDeactivated(cooker);
                     if (!cooker.HasAnyOutput)
                     {
                         cooker.StatusText = cooker.LockedRecipe != null
-                            ? "Paused - needs staff"
-                            : "空闲（需要员工）";
+                            ? "已暂停，等待指派相邻员工"
+                            : "空闲（需要指派相邻员工）";
                     }
                     else
                     {

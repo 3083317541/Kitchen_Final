@@ -419,7 +419,7 @@ namespace Kitchen.View
         /// <summary>Refreshes the active / selected look from the runtime state.</summary>
         public void ApplyState()
         {
-            bool active = Runtime != null && Runtime.IsActive;
+            bool active = Runtime != null && (Runtime.IsActive || Runtime.IsHeating);
             bool selected = isSelected;
 
             if (accentRenderer != null)

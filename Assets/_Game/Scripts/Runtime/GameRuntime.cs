@@ -511,7 +511,7 @@ namespace Kitchen.Runtime
 
             staffManager?.Select(staff);
             cookerManager?.SelectCooker(null);
-            Notify($"已选中 {staff.DisplayName}，用 WASD 移动。", MessageKind.Info);
+            Notify($"已选中 {staff.DisplayName}：WASD 移动，点击相邻设备指定任务。", MessageKind.Info);
         }
 
         /// <summary>Called by InputManager when a cooker was clicked in the world.</summary>
@@ -523,7 +523,11 @@ namespace Kitchen.Runtime
             }
 
             cookerManager?.SelectCooker(cooker);
-            staffManager?.Select(null);
+            if (staffManager != null && staffManager.Selected != null &&
+                staffManager.TryAssignCooker(staffManager.Selected, cooker))
+            {
+                Notify($"{staffManager.Selected.DisplayName} 负责 {cooker.Definition.DisplayName}。", MessageKind.Info);
+            }
         }
 
         /// <summary>Called by InputManager when the clicked cell holds nothing selectable.</summary>
@@ -595,9 +599,7 @@ namespace Kitchen.Runtime
                 return false;
             }
 
-            bool collected = cooker.CollectAllOutput();
-            Notify(collected ? "产出已收入厨房库存。" : "没有可收取的产出。", collected ? MessageKind.Success : MessageKind.Info);
-            return collected;
+            return cookerManager != null && cookerManager.TryCollectCookerOutput(cooker);
         }
 
         /// <summary>Player asked to serve the active order.</summary>

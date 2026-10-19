@@ -23,6 +23,6 @@ MonoBehaviour:
   bodyColor: {r: 0.3, g: 0.32, b: 0.36, a: 1}
   accentColor: {r: 0.92, g: 0.42, b: 0.2, a: 1}
   bodySize: {x: 1.5, y: 0.35, z: 1.5}
-  viewPrefab: {fileID: 2008503378867890680, guid: 53d9d76621f203249b8480641395f467, type: 3}
+  viewPrefab: {fileID: 6065039142995754251, guid: 53d9d76621f203249b8480641395f467, type: 3}
   bodyMaterial: {fileID: 0}
   accentMaterial: {fileID: 0}

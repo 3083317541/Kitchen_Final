@@ -11,7 +11,7 @@ namespace Kitchen.Cookers
     /// <summary>
     /// Runtime state of one placed cooker: which cell it occupies, whether staff are activating it,
     /// which recipe inputs it holds, how far the current conversion has progressed and what it has
-    /// produced. Progress lives here so a cooker that loses its staff pauses and later resumes.
+    /// produced. Manual progress pauses without staff; heating advances through its own phases.
     /// </summary>
     public class CookerRuntime
     {
@@ -51,7 +51,7 @@ namespace Kitchen.Cookers
         /// <summary>True when the cooker exists in the world and occupies a grid cell.</summary>
         public bool IsPlaced { get; internal set; }
 
-        /// <summary>True while a staff member stands on the cooker's cell.</summary>
+        /// <summary>True while an assigned staff member has arrived at an adjacent work position.</summary>
         public bool IsActive { get; internal set; }
 
         /// <summary>Staff id currently activating the cooker, or -1.</summary>
@@ -77,6 +77,13 @@ namespace Kitchen.Cookers
 
         /// <summary>Normalised progress of the current conversion, in the range 0..1.</summary>
         public float WorkProgress { get; internal set; }
+
+        public float OperationSeconds { get; internal set; }
+
+        public float ReadySeconds { get; internal set; }
+
+        public bool IsHeating => Definition != null && Definition.WorkType == WorkType.Timed &&
+            LockedRecipe != null && State == CookerState.Working;
 
         /// <summary>State reported to the UI.</summary>
         public CookerState State { get; set; } = CookerState.Idle;

@@ -140,7 +140,7 @@ namespace Kitchen.Cookers
             }
         }
 
-        /// <summary>Staff id standing on the cooker's cell, or -1 when the cooker is not activated.</summary>
+        /// <summary>Staff id assigned to operate this cooker from an adjacent cell, or -1.</summary>
         public int TryGetWorkingStaffId(CookerRuntime cooker)
         {
             if (cooker == null || !cooker.IsPlaced)
@@ -148,8 +148,19 @@ namespace Kitchen.Cookers
                 return -1;
             }
 
-            int staffId = Runtime.Grid.GetStaffId(cooker.GridPosition);
-            return staffId != 0 ? staffId : -1;
+            IReadOnlyList<Entities.StaffRuntime> employees = Runtime.Staff.Staff;
+            for (int index = 0; index < employees.Count; index++)
+            {
+                Entities.StaffRuntime employee = employees[index];
+                Vector2Int offset = employee.GridPosition - cooker.GridPosition;
+                if (!employee.IsMoving && employee.AssignedCookerId == cooker.Id &&
+                    Mathf.Abs(offset.x) + Mathf.Abs(offset.y) == 1)
+                {
+                    return employee.Id;
+                }
+            }
+
+            return -1;
         }
 
         // ------------------------------------------------------------------ creation
@@ -302,6 +313,14 @@ namespace Kitchen.Cookers
                 return false;
             }
 
+            if (cooker.Definition.WorkType == WorkType.Timed &&
+                (cooker.LockedRecipe != null || cooker.HasAnyOutput ||
+                 cooker.State == CookerState.Burnt || cooker.State == CookerState.Cleaning))
+            {
+                Runtime.Notify("请先完成加热、取出和清理，再移动设备。", MessageKind.Warning);
+                return false;
+            }
+
             if (!Runtime.Grid.InBounds(target))
             {
                 Runtime.Notify("不能把厨具移到厨房之外。", MessageKind.Warning);
@@ -329,13 +348,14 @@ namespace Kitchen.Cookers
             }
             Vector3 world = Runtime.Grid.GridToWorld(target);
             cooker.SetPlacement(target, world, true);
+            Runtime.Staff.ReleaseCooker(cooker.Id);
 
             if (cooker.View != null)
             {
                 cooker.View.SnapTo(world);
             }
 
-            // Occupancy changed, so the newly covering staff member re-activates the cooker next tick.
+            // Moving releases the assignment; the employee must choose a new adjacent task.
             cooker.IsActive = false;
             cooker.ActiveStaffId = -1;
 
@@ -353,12 +373,21 @@ namespace Kitchen.Cookers
                 return false;
             }
 
+            if (cooker.Definition.WorkType == WorkType.Timed &&
+                (cooker.LockedRecipe != null || cooker.HasAnyOutput ||
+                 cooker.State == CookerState.Burnt || cooker.State == CookerState.Cleaning))
+            {
+                Runtime.Notify("请先让员工完成取出或清理，再拆除加热设备。", MessageKind.Warning);
+                return false;
+            }
+
             if (cooker.Slots.Count > 0 && Runtime.Inventory != null)
             {
                 Runtime.Inventory.Release(cooker.Slots);
             }
 
             cooker.ForgetLock();
+            Runtime.Staff.ReleaseCooker(cooker.Id);
 
             if (cooker.HasAnyOutput && Runtime.Inventory != null)
             {
@@ -385,8 +414,7 @@ namespace Kitchen.Cookers
 
         public override void Tick(float deltaTime)
         {
-            // Cooker activation is refreshed every tick from the grid, so it is impossible for a
-            // cooker to keep working after its staff member has walked away.
+            // Attendance is refreshed from explicit tasks and arrived adjacent employees.
             for (int i = 0; i < cookers.Count; i++)
             {
                 CookerRuntime cooker = cookers[i];
@@ -417,6 +445,8 @@ namespace Kitchen.Cookers
                 {
                     cooker.ActiveStaffId = staffId;
                 }
+
+                cooker.View?.ApplyState();
             }
         }
 
@@ -448,12 +478,10 @@ namespace Kitchen.Cookers
                 return false;
             }
 
-            bool collected = cooker.CollectAllOutput();
-            Runtime.Notify(
-                collected ? "产出已收入厨房库存。" : "产出收取失败。",
-                collected ? MessageKind.Success : MessageKind.Warning);
-
-            return collected;
+            bool assigned = Runtime.Staff.TryAssignCooker(Runtime.Staff.Selected, cooker);
+            Runtime.Notify(assigned ? "员工正在处理设备产出。" : "请选择相邻的员工来处理产出。",
+                assigned ? MessageKind.Info : MessageKind.Warning);
+            return assigned;
         }
 
         /// <summary>Formats the produced output of a cooker for the UI.</summary>

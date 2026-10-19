@@ -293,12 +293,11 @@ namespace Kitchen.Grid
                 return false;
             }
 
-            return !data.HasCooker || data.cookerId == ignoreCookerId;
+            return !data.HasStaff && (!data.HasCooker || data.cookerId == ignoreCookerId);
         }
 
         /// <summary>
-        /// A cell accepts a staff member when it is inside the grid and holds no other staff member.
-        /// Staff may share a cell with a cooker, which is how cookers get activated.
+        /// A cell accepts a staff member when it is inside the grid and holds no cooker or other staff.
         /// </summary>
         public bool IsFreeForStaff(Vector2Int gridPosition, int staffId = 0)
         {
@@ -308,7 +307,7 @@ namespace Kitchen.Grid
                 return false;
             }
 
-            return !data.HasStaffOtherThan(staffId);
+            return !data.HasCooker && !data.HasStaffOtherThan(staffId);
         }
 
         /// <summary>Finds the closest free cell to <paramref name="preferred"/> using a widening search.</summary>
@@ -382,7 +381,7 @@ namespace Kitchen.Grid
         public bool TryOccupyCooker(Vector2Int gridPosition, int cookerId)
         {
             GridData data = GetGridData(gridPosition);
-            if (data == null || (data.HasCooker && data.cookerId != cookerId))
+            if (data == null || !IsFreeForCooker(gridPosition, cookerId))
             {
                 return false;
             }
@@ -406,7 +405,7 @@ namespace Kitchen.Grid
         public bool TryOccupyStaff(Vector2Int gridPosition, int staffId)
         {
             GridData data = GetGridData(gridPosition);
-            if (data == null || data.HasStaffOtherThan(staffId))
+            if (data == null || !IsFreeForStaff(gridPosition, staffId))
             {
                 return false;
             }
@@ -468,21 +467,14 @@ namespace Kitchen.Grid
         public bool TryMoveCookerTraced(Vector2Int from, Vector2Int to, int cookerId)
         {
             bool freeForCooker = IsFreeForCooker(to, cookerId);
-            bool freeForStaff = IsFreeForStaff(to, cookerId);
-            bool releaseFrom = TryReleaseCooker(from, cookerId);
-            bool occupyTo = TryOccupyCooker(to, cookerId);
-
-            if (!freeForCooker)
-            {
-                // Restore the original state.
-                TryOccupyCooker(from, cookerId);
-            }
+            bool freeForStaff = IsFreeForStaff(to);
+            bool moved = TryMoveCooker(from, to, cookerId);
 
             LastMoveTrace =
                 $"from={DescribeCell(from)} to={DescribeCell(to)} free={freeForCooker} " +
-                $"freeForStaff={freeForStaff} released={releaseFrom} occupied={occupyTo}";
+                $"freeForStaff={freeForStaff} moved={moved}";
 
-            return freeForCooker && occupyTo;
+            return moved;
         }
 
         /// <summary>Moves a staff record from one cell to another, leaving both cells consistent.</summary>

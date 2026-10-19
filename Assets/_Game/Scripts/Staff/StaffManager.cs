@@ -9,8 +9,8 @@ namespace Kitchen.Staff
 {
     /// <summary>
     /// Owns the employees: creation, selection, discrete grid movement and the smoothing that
-    /// walks a model to the centre of its destination cell. Employees may never overlap each other
-    /// but may share a cell with a cooker, which is how cookers are activated.
+    /// walks a model to the centre of its destination cell. Employees occupy walkable cells and
+    /// explicitly operate one neighbouring cooker at a time.
     /// </summary>
     [DisallowMultipleComponent]
     public class StaffManager : GameSystem
@@ -212,11 +212,50 @@ namespace Kitchen.Staff
             return GetStaff(Runtime.Grid.GetStaffId(cell));
         }
 
+        public bool TryAssignCooker(StaffRuntime employee, Cookers.CookerRuntime cooker)
+        {
+            if (employee == null || cooker == null || employee.Owner != Runtime || cooker.Owner != Runtime || !cooker.IsPlaced)
+            {
+                return false;
+            }
+
+            Vector2Int offset = cooker.GridPosition - employee.GridPosition;
+            if (employee.IsMoving || Mathf.Abs(offset.x) + Mathf.Abs(offset.y) != 1)
+            {
+                Runtime.Notify("先让员工走到设备上下左右的相邻空格，再点击设备指定任务。", MessageKind.Warning);
+                return false;
+            }
+
+            for (int index = 0; index < staff.Count; index++)
+            {
+                if (staff[index] != employee && staff[index].AssignedCookerId == cooker.Id)
+                {
+                    Runtime.Notify("这台设备已有员工负责。", MessageKind.Warning);
+                    return false;
+                }
+            }
+
+            employee.AssignedCookerId = cooker.Id;
+            employee.View?.FaceTowards(cooker.WorldPosition);
+            Runtime.Cookers.Tick(0f);
+            return true;
+        }
+
+        public void ReleaseCooker(int cookerId)
+        {
+            for (int index = 0; index < staff.Count; index++)
+            {
+                if (staff[index].AssignedCookerId == cookerId)
+                {
+                    staff[index].AssignedCookerId = 0;
+                }
+            }
+        }
+
         // ------------------------------------------------------------------ movement
 
         /// <summary>
-        /// Requests a discrete move of the selected employee by one cell. The employee is allowed to
-        /// start a new step before the previous one finished, which keeps WASD responsive.
+        /// Requests a discrete move of the selected employee by one cell after the previous arrival.
         /// </summary>
         public bool TryMoveSelected(Vector2Int direction)
         {
@@ -231,7 +270,7 @@ namespace Kitchen.Staff
 
         public bool TryMove(StaffRuntime runtime, Vector2Int direction)
         {
-            if (runtime == null)
+            if (runtime == null || runtime.IsMoving)
             {
                 return false;
             }
@@ -269,9 +308,12 @@ namespace Kitchen.Staff
             }
 
             Vector3 world = Runtime.Grid.GridToWorld(target);
+            runtime.AssignedCookerId = 0;
+            runtime.View?.FaceTowards(world);
             runtime.GridPosition = target;
             runtime.TargetGridPosition = target;
             runtime.IsMoving = true;
+            Runtime.Cookers.Tick(0f);
 
             // The model keeps its current position and walks to the new cell centre.
             return true;
@@ -280,7 +322,7 @@ namespace Kitchen.Staff
         /// <summary>Legality test used by the UI to grey out impossible moves.</summary>
         public bool CanMoveSelected(Vector2Int direction)
         {
-            if (selected == null)
+            if (selected == null || selected.IsMoving || Mathf.Abs(direction.x) + Mathf.Abs(direction.y) != 1)
             {
                 return false;
             }

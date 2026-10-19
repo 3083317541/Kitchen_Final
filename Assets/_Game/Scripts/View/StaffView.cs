@@ -292,7 +292,22 @@ namespace Kitchen.View
             transform.position = worldPosition;
         }
 
-        /// <summary>Shows or hides the selection marker.</summary>
+        /// <summary>Faces the visual model towards an interaction target.</summary>
+        public void FaceTowards(Vector3 worldPosition)
+        {
+            if (modelRoot == null)
+            {
+                return;
+            }
+
+            Vector3 direction = worldPosition - transform.position;
+            direction.y = 0f;
+            if (direction.sqrMagnitude > 0.0001f)
+            {
+                modelRoot.rotation = Quaternion.LookRotation(direction);
+            }
+        }
+
         public void SetSelected(bool selected)
         {
             isSelected = selected;

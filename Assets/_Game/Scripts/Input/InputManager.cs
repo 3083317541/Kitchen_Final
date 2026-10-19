@@ -564,7 +564,6 @@ namespace Kitchen.Input
                 CookerView cookerView = hitObject.GetComponentInParent<CookerView>();
                 if (cookerView != null && cookerView.Runtime != null)
                 {
-                    runtime.HandleCookerClicked(cookerView.Runtime);
                     CookerContextRequested?.Invoke(cookerView.Runtime);
                     return;
                 }

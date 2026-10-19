@@ -244,6 +244,7 @@ namespace Kitchen.EditorTools
             ScenarioMaterials();
             ScenarioCampaign();
             ScenarioCookerControls();
+            ScenarioScheduling();
             ScenarioSceneScriptGuids();
             ScenarioFinalConsistency();
         }
@@ -1430,14 +1431,15 @@ namespace Kitchen.EditorTools
             runtime.HandleStaffClicked(mover);
 
             // Out of bounds is refused: chef 0 is placed on the border for this check.
-            Relocate(mover, new Vector2Int(0, 0));
+            Relocate(mover, new Vector2Int(0, 1));
             runtime.HandleStaffClicked(mover);
             bool refusedEdge = !runtime.TryMoveSelectedStaff(new Vector2Int(-1, 0))
-                && mover.GridPosition == new Vector2Int(0, 0);
+                && mover.GridPosition == new Vector2Int(0, 1);
             Expect("staff_out_of_bounds", refusedEdge,
-                "a step from (0,0) towards (-1,0) was refused and the chef stayed put.");
+                "a step from (0,1) towards (-1,1) was refused and the chef stayed put.");
 
             // Move to a free cell so the arrival check below has real travel to perform.
+            Relocate(blocker, new Vector2Int(2, 3));
             Relocate(mover, new Vector2Int(2, 2));
             runtime.HandleStaffClicked(mover);
             runtime.TryMoveSelectedStaff(new Vector2Int(0, -1));
@@ -1798,7 +1800,7 @@ namespace Kitchen.EditorTools
 
             Advance(2.5f);
             bool halfway = cooker.WorkProgress > 0.3f && cooker.WorkProgress < 0.8f && ProducedBy(cooker, Item(GameContentFactory.Ids.CookedMeatSlice)) == 0;
-            Advance(3.0f);
+            Advance(3.5f);
             bool done = ProducedBy(cooker, Item(GameContentFactory.Ids.CookedMeatSlice)) > 0;
             Expect("fry_5_seconds", halfway && done,
                 $"halfway progress = {(halfway ? "about 50%" : "unexpected")}, output = {Describe(runtime.Cookers.DescribeOutputs(cooker))}.");
@@ -2092,7 +2094,7 @@ namespace Kitchen.EditorTools
 
             runtime.HandleStaffClicked(staff);
             runtime.HandleCookerClicked(cooker);
-            bool cookerSelected = runtime.Cookers.Selected == cooker && runtime.Staff.Selected == null;
+            bool cookerSelected = runtime.Cookers.Selected == cooker && runtime.Staff.Selected == staff;
             bool cookerViewSelected = cooker.View != null;
             Expect("click_select_cooker", cookerSelected && cookerViewSelected,
                 $"cooker selected = {cookerSelected}, view present = {cookerViewSelected}.");
@@ -2104,11 +2106,11 @@ namespace Kitchen.EditorTools
             // Selection visuals must exist and switch on.
             bool ringOn = staff.View != null && staff.View.gameObject.activeSelf;
             runtime.HandleCookerClicked(cooker);
-            bool ringOffAfterSwitch = runtime.Staff.Selected == null;
-            Expect("selection_feedback", ringOn && ringOffAfterSwitch,
-                $"selected staff view active = {ringOn}, staff deselected when a cooker is picked = {ringOffAfterSwitch}.");
+            bool staffRetained = runtime.Staff.Selected == staff;
+            Expect("selection_feedback", ringOn && staffRetained,
+                $"selected staff view active = {ringOn}, employee retained for device assignment = {staffRetained}.");
 
-            // Activating through movement, using the same path the WASD input uses.
+            // Assignment activates an adjacent employee; leaving releases the assignment.
             ResetInventory();
             runtime.GrantItem(Item(GameContentFactory.Ids.Cabbage), 1);
             ParkAllStaff();
@@ -2123,6 +2125,133 @@ namespace Kitchen.EditorTools
         }
 
         // ---- world geometry and scene wiring -------------------------------------------------
+
+        private static void ScenarioScheduling()
+        {
+            ResetInventory();
+            ParkAllStaff();
+            CookerRuntime chopping = FindCooker(GameContentFactory.Ids.ChoppingStation);
+            CookerRuntime pan = FindCooker(GameContentFactory.Ids.FryingPan);
+            StaffRuntime employee = runtime.AllStaff[0];
+            Vector2Int choppingPosition = chopping.GridPosition;
+            Vector2Int panPosition = pan.GridPosition;
+            string preferredRecipe = chopping.PreferredRecipeId;
+
+            try
+            {
+                Relocate(runtime.AllStaff[1], new Vector2Int(0, 3));
+                Relocate(runtime.AllStaff[2], new Vector2Int(4, 2));
+                Relocate(employee, new Vector2Int(2, 2));
+                bool arranged = runtime.Cookers.TryMoveCooker(chopping, new Vector2Int(2, 3)) &&
+                    runtime.Cookers.TryMoveCooker(pan, new Vector2Int(3, 2));
+                Expect("scheduling_work_positions", arranged, "chopping and heating share the work position (2,2).");
+                if (!arranged)
+                {
+                    return;
+                }
+
+                bool refusedOccupiedMove = !runtime.Grid.TryMoveCookerTraced(chopping.GridPosition, pan.GridPosition, chopping.Id);
+                Expect("failed_device_move_preserves_grid", refusedOccupiedMove &&
+                    runtime.Grid.GetCookerId(chopping.GridPosition) == chopping.Id &&
+                    runtime.Grid.GetCookerId(pan.GridPosition) == pan.Id,
+                    "a refused move preserves the source device and the occupied target.");
+
+                chopping.PreferredRecipeId = GameContentFactory.Ids.ChopCabbage;
+                runtime.GrantItem(Item(GameContentFactory.Ids.Cabbage), 2);
+                runtime.GrantItem(Item(GameContentFactory.Ids.RawMeatSlice), 3);
+                runtime.HandleStaffClicked(employee);
+                Advance(0.2f);
+                Expect("adjacency_requires_assignment", !chopping.IsActive && !pan.IsActive,
+                    "standing beside two devices does not activate either without a task.");
+                Expect("staff_cannot_enter_device", !runtime.Staff.TryMove(employee, Vector2Int.up),
+                    "device cells cannot be entered by employees.");
+                Expect("device_cannot_cover_staff", !runtime.Grid.IsFreeForCooker(employee.GridPosition),
+                    "a device cannot be placed on a work position occupied by an employee.");
+
+                Relocate(employee, new Vector2Int(2, 1));
+                Expect("diagonal_operation_refused", !runtime.Staff.TryAssignCooker(employee, pan),
+                    "a diagonal neighbour cannot operate a device.");
+                Relocate(employee, new Vector2Int(2, 2));
+                runtime.HandleCookerClicked(chopping);
+                Advance(0.65f);
+                int cuts = chopping.WorkTicks;
+                Relocate(runtime.AllStaff[1], new Vector2Int(1, 3));
+                Expect("device_has_one_operator", !runtime.Staff.TryAssignCooker(runtime.AllStaff[1], chopping),
+                    "a second employee cannot take over an assigned device.");
+
+                runtime.HandleCookerClicked(pan);
+                Advance(pan.Definition.PreparationDuration * 0.3f);
+                float preparationProgress = pan.WorkProgress;
+                runtime.HandleCookerClicked(chopping);
+                Advance(0.3f);
+                Expect("preparation_requires_staff", pan.State == CookerState.Preparing &&
+                    Mathf.Approximately(preparationProgress, pan.WorkProgress),
+                    "preparation remains paused while the employee operates another device.");
+                cuts = chopping.WorkTicks;
+                runtime.HandleCookerClicked(pan);
+                Advance(pan.Definition.PreparationDuration + 0.1f);
+                Expect("one_employee_one_active_task", pan.IsHeating && !chopping.IsActive &&
+                    employee.AssignedCookerId == 0 && chopping.WorkTicks == cuts,
+                    "switching to preparation pauses chopping and retains its progress.");
+                bool left = runtime.Staff.TryMove(employee, Vector2Int.left);
+                Advance(0.05f);
+                Expect("no_work_while_moving", left && !runtime.Staff.TryAssignCooker(employee, chopping) && !pan.IsActive,
+                    "travelling immediately releases the task and cannot activate a new device.");
+                Advance(pan.Definition.Duration + 0.25f);
+                ItemDefinition cooked = Item(GameContentFactory.Ids.CookedMeatSlice);
+                Expect("heat_continues_unattended", pan.HasAnyOutput && !pan.IsActive,
+                    "heating completes while the assigned employee is away.");
+                Expect("heated_output_waits_locally", runtime.Inventory.TotalCount(cooked) == 0 &&
+                    runtime.Inventory.TotalCount(Item(GameContentFactory.Ids.RawMeatSlice)) == 2,
+                    "one batch waits in the pan; it is not credited or restarted remotely.");
+                Expect("remote_collection_refused", !runtime.TryCollectCookerOutput(pan) && pan.HasAnyOutput,
+                    "a distant selected employee cannot bypass collection time.");
+                Expect("dismantle_cannot_collect", !runtime.TrySellCooker(pan) && pan.HasAnyOutput,
+                    "dismantling cannot bypass the return visit.");
+                Expect("busy_heater_cannot_move", !runtime.Cookers.TryMoveCooker(pan, new Vector2Int(3, 3)) &&
+                    pan.GridPosition == new Vector2Int(3, 2),
+                    "a pending batch cannot be moved to bypass employee travel.");
+
+                MoveStaffTo(0, pan.GridPosition);
+                Expect("collection_requires_operation_time", pan.HasAnyOutput && runtime.Inventory.TotalCount(cooked) == 0,
+                    "assigning a collector does not instantly credit the output.");
+                Advance(pan.Definition.CollectionDuration + 0.05f);
+                Expect("collection_credits_once", !pan.HasAnyOutput && runtime.Inventory.TotalCount(cooked) == 1,
+                    "an adjacent employee completes collection and credits exactly one unit.");
+                ParkAllStaff();
+                Advance(1f);
+                Expect("heat_needs_new_visit", pan.LockedRecipe == null && !pan.HasAnyOutput,
+                    "a new batch is not started without another employee visit.");
+
+                MoveStaffTo(0, pan.GridPosition);
+                Advance(pan.Definition.PreparationDuration + 0.1f);
+                ParkAllStaff();
+                Advance(pan.Definition.Duration + pan.Definition.BurnGraceDuration + 0.5f);
+                Expect("unattended_food_burns", pan.State == CookerState.Burnt && !pan.HasAnyOutput &&
+                    runtime.Inventory.TotalCount(cooked) == 1,
+                    "uncollected food is lost after its grace period without duplicating inventory.");
+                MoveStaffTo(0, pan.GridPosition);
+                Advance(pan.Definition.CleaningDuration * 0.5f);
+                float cleaningProgress = pan.WorkProgress;
+                ParkAllStaff();
+                Advance(1f);
+                Expect("cleaning_requires_staff", pan.State == CookerState.Cleaning &&
+                    Mathf.Approximately(cleaningProgress, pan.WorkProgress),
+                    "cleaning pauses when the employee leaves.");
+                MoveStaffTo(0, pan.GridPosition);
+                Advance(pan.Definition.CleaningDuration * 0.5f + 0.05f);
+                Expect("burnt_device_recovers", pan.State == CookerState.Idle && pan.LockedRecipe == null,
+                    "finishing cleanup makes the pan usable again.");
+            }
+            finally
+            {
+                ResetInventory();
+                ParkAllStaff();
+                runtime.Cookers.TryMoveCooker(pan, panPosition);
+                runtime.Cookers.TryMoveCooker(chopping, choppingPosition);
+                chopping.PreferredRecipeId = preferredRecipe;
+            }
+        }
 
         private static void ScenarioWorldGeometry()
         {
@@ -2592,8 +2721,12 @@ namespace Kitchen.EditorTools
 
         private static void Relocate(StaffRuntime staff, Vector2Int cell)
         {
+            runtime.Staff.ReleaseCooker(staff.AssignedCookerId);
             runtime.Grid.TryReleaseStaff(staff.GridPosition, staff.Id);
-            runtime.Grid.TryOccupyStaff(cell, staff.Id);
+            if (!runtime.Grid.TryOccupyStaff(cell, staff.Id))
+            {
+                throw new InvalidOperationException($"Cannot relocate employee {staff.Id} to {cell}.");
+            }
             staff.SnapTo(cell, runtime.Grid.GridToWorld(cell));
             if (staff.View != null)
             {
@@ -2610,6 +2743,28 @@ namespace Kitchen.EditorTools
 
             StaffRuntime staff = runtime.AllStaff[index];
             Vector2Int target = cell;
+
+            CookerRuntime targetCooker = runtime.Cookers.GetCookerAt(cell);
+            if (targetCooker != null)
+            {
+                Vector2Int[] directions = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
+                for (int directionIndex = 0; directionIndex < directions.Length; directionIndex++)
+                {
+                    Vector2Int candidate = cell + directions[directionIndex];
+                    if (runtime.Grid.IsFreeForStaff(candidate, staff.Id))
+                    {
+                        Relocate(staff, candidate);
+                        if (!runtime.Staff.TryAssignCooker(staff, targetCooker))
+                        {
+                            throw new InvalidOperationException($"Cannot assign employee {staff.Id} to cooker {targetCooker.Id}.");
+                        }
+
+                        return;
+                    }
+                }
+
+                throw new InvalidOperationException($"Cooker {targetCooker.Id} has no available work position.");
+            }
 
             if (!runtime.Grid.InBounds(target) || !runtime.Grid.IsFreeForStaff(target, staff.Id))
             {
@@ -2718,6 +2873,7 @@ namespace Kitchen.EditorTools
                 cooker.ClearOutputs();
                 cooker.ResetProgress();
                 cooker.State = CookerState.Idle;
+                runtime.Work.GetStrategy(cooker.Definition.WorkType)?.Reset(cooker);
             }
         }
 

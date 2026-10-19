@@ -44,8 +44,8 @@ MonoBehaviour:
   rewardStaffCount: 1
   rewardCookerIds:
   - frying_pan
-  staffPrefab: {fileID: 7516086915697301495, guid: d36b2d2fc7aace746b6330ce974d26b1, type: 3}
-  floorPrefab: {fileID: 6341568880462139842, guid: f82a46a0a69c00b409db54c8c180817a, type: 3}
+  staffPrefab: {fileID: 5604651469109648858, guid: d36b2d2fc7aace746b6330ce974d26b1, type: 3}
+  floorPrefab: {fileID: 2563079133048098722, guid: f82a46a0a69c00b409db54c8c180817a, type: 3}
   items:
   - {fileID: 11400000, guid: 4e7ec019397b4324487d4a99945ca467, type: 2}
   - {fileID: 11400000, guid: 826dc63fca73d7d409205ecc3d283d61, type: 2}

@@ -693,7 +693,8 @@ namespace Kitchen.UI
             if (collectButton != null)
             {
                 CookerRuntime selected = runtime.Cookers != null ? runtime.Cookers.Selected : null;
-                collectButton.interactable = selected != null && selected.HasAnyOutput;
+                collectButton.interactable = selected != null && selected.HasAnyOutput &&
+                    runtime.Staff != null && runtime.Staff.Selected != null;
             }
         }
 
@@ -710,6 +711,14 @@ namespace Kitchen.UI
                     return "已完成待取";
                 case CookerState.Blocked:
                     return "产出已满";
+                case CookerState.Preparing:
+                    return "装料启动";
+                case CookerState.Collecting:
+                    return "取出成品";
+                case CookerState.Burnt:
+                    return "已烧焦，需清理";
+                case CookerState.Cleaning:
+                    return "清理中";
                 default:
                     return "空闲";
             }
@@ -806,7 +815,7 @@ namespace Kitchen.UI
             StaffRuntime staff = runtime.Staff != null ? runtime.Staff.Selected : null;
             CookerRuntime cooker = runtime.Cookers != null ? runtime.Cookers.Selected : null;
 
-            SetPanelActive(staffSection, staff != null);
+            SetPanelActive(staffSection, staff != null && cooker == null);
             SetPanelActive(cookerSection, cooker != null);
 
             if (staff != null)
@@ -818,17 +827,14 @@ namespace Kitchen.UI
 
                 if (staffPositionText != null)
                 {
-                    CookerRuntime occupied = staff.OccupiedCooker;
-                    string occupation = occupied != null ? $"　正在激活 {occupied.Definition.DisplayName}" : string.Empty;
+                    CookerRuntime occupied = staff.AssignedCooker;
+                    string occupation = occupied != null ? $"　负责 {occupied.Definition.DisplayName}" : "　未指定任务";
                     staffPositionText.text = $"格子 {staff.GridPosition.x},{staff.GridPosition.y}{occupation}";
                 }
 
                 if (staffHintText != null)
                 {
-                    CookerRuntime occupied = staff.OccupiedCooker;
-                    staffHintText.text = occupied != null
-                        ? "站在厨具上即可持续加工，WASD 走到相邻格子"
-                        : "WASD 走到相邻格子，站到厨具上即可激活";
+                    staffHintText.text = "WASD 移动；到位后点击相邻设备。加热完成需回来取出。";
                 }
             }
 
@@ -841,7 +847,7 @@ namespace Kitchen.UI
 
                 if (cookerStateText != null)
                 {
-                    string active = cooker.IsActive ? "加工中" : "未激活";
+                    string active = cooker.IsActive ? "员工在操作" : "无人操作";
                     cookerStateText.text = $"{active} / {DescribeState(cooker.State)}";
                 }
 

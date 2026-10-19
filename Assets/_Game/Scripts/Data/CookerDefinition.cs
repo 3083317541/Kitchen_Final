@@ -30,6 +30,12 @@ namespace Kitchen.Data
         [Tooltip("Number of chop ticks required to finish one conversion (Chopping only).")]
         [SerializeField, Min(1)] private int requiredTicks = 10;
 
+        [Header("Heating Operations (Timed only)")]
+        [SerializeField, Min(0.01f)] private float preparationDuration = 0.75f;
+        [SerializeField, Min(0.01f)] private float collectionDuration = 0.5f;
+        [SerializeField, Min(0.01f)] private float burnGraceDuration = 10f;
+        [SerializeField, Min(0.01f)] private float cleaningDuration = 1.5f;
+
         [Header("Whitebox Look")]
         [SerializeField] private Color bodyColor = new Color(0.72f, 0.72f, 0.78f);
         [SerializeField] private Color accentColor = new Color(0.35f, 0.62f, 0.85f);
@@ -59,6 +65,11 @@ namespace Kitchen.Data
 
         /// <summary>Chop ticks required for one conversion (Chopping).</summary>
         public int RequiredTicks => Mathf.Max(1, requiredTicks);
+
+        public float PreparationDuration => Mathf.Max(0.01f, preparationDuration);
+        public float CollectionDuration => Mathf.Max(0.01f, collectionDuration);
+        public float BurnGraceDuration => Mathf.Max(0.01f, burnGraceDuration);
+        public float CleaningDuration => Mathf.Max(0.01f, cleaningDuration);
 
         public bool RequiresInput => workType != WorkType.Washing;
 

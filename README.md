@@ -4,8 +4,8 @@
 
 参考《王之凝视》的"厨具即建筑、员工激活厨具"玩法：你扮演厨师长，在只有三名员工的厨房里实时安排员工站位与厨具，完成订单。
 
-A top-down 3D kitchen automation demo. Cookers act as buildings and chefs activate them by standing
-on their cell. All art is placeholder geometry with explicit replacement seams.
+A top-down 3D kitchen automation demo. Chefs operate one assigned adjacent cooker at a time.
+Heating runs unattended after preparation and requires a return visit to collect the food.
 
 ---
 
@@ -36,7 +36,7 @@ on their cell. All art is placeholder geometry with explicit replacement seams.
 | 第三关 · 盘子循环 | 沙拉、生菜番茄肉面包 | 全部四台 | 3 | 300 | —（最后一关） |
 
 - 每关有**固定订单清单**，全部完成即通关，显示奖励面板，点"进入下一关"继续。
-- **订单失败会重发同一张**，所以失误不会让关卡变得无法通过。
+- **订单超时会重发同一张**，保留库存与加工进度；食物烧焦仍会损失原料，资源耗尽时可重新开始关卡。
 - 关卡的初始金钱、库存、员工数、厨具目录、订单清单都是 `Assets/_Game/Resources/Kitchen/Level_0N.asset` 的数据，可以直接在 Inspector 改。
 - 每关的通关奖励记录在 `LevelConfig` 的 `Clear Reward` 里，用于奖励面板显示；下一关的实际内容由它自己的配置决定，避免两处重复计算。
 
@@ -46,8 +46,8 @@ on their cell. All art is placeholder geometry with explicit replacement seams.
 
 | 操作 | 说明 |
 |---|---|
-| 左键点击厨师 | 选中，WASD 走相邻格子（站到厨具格即激活该厨具） |
-| 左键点击厨具 | 打开操作面板，查看投入、产出、状态与进度 |
+| 左键点击厨师 | 选中，用 WASD 走到设备旁的空格；行走中不能操作 |
+| 左键点击厨具 | 查看面板；已有选中员工时，为该员工指定相邻设备任务 |
 | 商店按钮 / 数字键 1-4 | 选择要购买的厨具，再左键点空地放置 |
 | Esc / 右键 | 取消建造或移动 |
 | 移动厨具按钮 | 进入移动模式，WASD 或点击相邻格完成移动 |
@@ -57,9 +57,12 @@ on their cell. All art is placeholder geometry with explicit replacement seams.
 
 ## 玩法规则 / Rules
 
-- 一名员工占一格，一台厨具占一格，**员工可以与厨具共格**（这就是激活方式）。
-- 厨具只在有员工站上去时才加工；员工离开则暂停，**已完成进度保留**。
-- 切菜台每 0.3 秒切一次、共 10 次；煎锅 5 秒；组装台 10 秒；洗碗台 5 秒一只盘子。
+- 一名员工占一格，一台厨具占一格，员工在设备上下左右的相邻空格操作，不能进入设备格；斜角不算操作范围。
+- 到位后点击设备明确指定任务，同一员工只能操作一台设备，同一设备只接受一名员工。切菜、组装、洗碗在离岗或换任务时暂停，保留进度。
+- 切菜台每 0.3 秒切一次、共 10 次；煎锅自动加热 5 秒；组装台 10 秒；洗碗台 5 秒一只盘子。
+- 煎锅默认需要 0.75 秒装料，随后释放员工并自动加热。完成后再次指定员工，花 0.5 秒取出入库；未取成品占用设备，10 秒后烧焦，需员工花 1.5 秒清理。清理完成后需再次指派装料。
+- 加热设备有进行中的批次、待取成品或焦糊时，不能移动或拆除；完成处理后可以重新布置。
+- 这些加热操作时间可在 CookerDefinition 的 Inspector 调整；没有新增物品 ID 或配方。物流、多订单和关卡数值调整仍属后续阶段。
 - 组装台的配方**数量必须精确匹配**，多一份都不算。
 - 出餐必须同时有成品与干净盘子，成功后生成**待归还盘子任务**，10–20 秒后变成脏盘子，
   洗净后重新变成干净盘子——形成盘子循环。
@@ -79,7 +82,7 @@ Systems（领域模块，均挂在 Systems 对象上）
 ├── GridManager        网格与占用（Dictionary<Vector2Int, GridData>）
 ├── CookerManager      购买、放置、合法性、占用、移动、删除
 ├── StaffManager       创建、选中、离散移动、格子中心平滑插值
-├── WorkManager        统一检查"员工是否在厨具格"并推进加工
+├── WorkManager        统一检查邻格任务并推进主动操作、自动加热与焦糊风险
 ├── InventoryManager   库存唯一入口（含预定机制，防止材料被重复消费）
 ├── RecipeManager      配方匹配、输入锁定、完成转换
 ├── OrderManager       订单生成、交付验证、奖励、超时

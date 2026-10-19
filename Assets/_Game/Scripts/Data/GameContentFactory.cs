@@ -278,10 +278,10 @@ namespace Kitchen.Data
             AddOrder(spec, content, "order_salad");
             AddOrder(spec, content, "order_salad_plus");
 
-            spec.Tutorial.Add("第一步：用鼠标左键选中厨师，再点击地面上的空格子把他放下。");
+            spec.Tutorial.Add("第一步：左键选中厨师，用 WASD 移动到空格。");
             spec.Tutorial.Add("第二步：在左侧商店购买切菜台，然后点击一个空格子放置。");
             spec.Tutorial.Add("第三步：同样方式购买并放置组装台。");
-            spec.Tutorial.Add("第四步：让厨师站在厨具所在的格子上，厨具才会开始工作。");
+            spec.Tutorial.Add("第四步：让厨师走到设备上下左右的相邻空格，点击设备指定任务。");
 
             spec.RewardStaff = 1;
             spec.RewardCookers.Add(Ids.FryingPan);
@@ -323,7 +323,7 @@ namespace Kitchen.Data
             AddOrder(spec, content, "order_salad_plus");
             AddOrder(spec, content, "order_meat_bread");
 
-            spec.Tutorial.Add("煎锅是有火的厨具：厨师必须一直站在上面，走开就会暂停加工。");
+            spec.Tutorial.Add("煎锅需员工装料启动，之后自动加热；完成后再次指派员工取出，放太久会烧焦。");
             spec.Tutorial.Add("生肉要先在切菜台切成生肉片，再放进煎锅煎成熟肉片。");
             spec.Tutorial.Add("汉堡需要 菜片 + 番茄片 + 熟肉片 + 面包片，四样缺一不可。");
 
