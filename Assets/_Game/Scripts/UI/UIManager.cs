@@ -358,7 +358,7 @@ namespace Kitchen.UI
             }
 
             input.EnterMoveCookerMode(cooker);
-            ShowNotification("移动厨具：WASD 或点击相邻格子，Esc 取消。", MessageKind.Info);
+            ShowNotification("移动厨具：WASD 或点击相邻格，R 旋转，Esc 取消。", MessageKind.Info);
             RefreshValues();
         }
 
@@ -674,8 +674,8 @@ namespace Kitchen.UI
             {
                 bool building = input != null && input.Mode == InteractionMode.Build && input.PendingCooker != null;
                 buildHintText.text = building
-                    ? $"放置 {input.PendingCooker.DisplayName}：左键点空地，Esc 取消"
-                    : "在商店购买厨具（或按 1-4），再点空地放置";
+                    ? $"放置 {input.PendingCooker.DisplayName}：R 旋转，左键放置，Esc 取消"
+                    : "1-4 购买；选中厨具后按 R 旋转正面";
             }
 
             // Buttons that would fail are shaded so the player sees the state before clicking.
@@ -834,7 +834,7 @@ namespace Kitchen.UI
 
                 if (staffHintText != null)
                 {
-                    staffHintText.text = "WASD 移动；到位后点击相邻设备。加热完成需回来取出。";
+                    staffHintText.text = "WASD 走到正面操作格，再点击设备。共用操作格一次只能站一人。";
                 }
             }
 
@@ -847,13 +847,12 @@ namespace Kitchen.UI
 
                 if (cookerStateText != null)
                 {
-                    string active = cooker.IsActive ? "员工在操作" : "无人操作";
-                    cookerStateText.text = $"{active} / {DescribeState(cooker.State)}";
+                    cookerStateText.text = $"{DescribeState(cooker.State)} · {runtime.Cookers.DescribeWorkPosition(cooker)}";
                 }
 
                 if (cookerPositionText != null)
                 {
-                    cookerPositionText.text = $"格子 {cooker.GridPosition.x},{cooker.GridPosition.y}";
+                    cookerPositionText.text = $"朝{CookerFacingUtility.Label(cooker.Facing)} · 操作格 {cooker.WorkPosition.x},{cooker.WorkPosition.y} · R旋转";
                 }
 
                 if (cookerInputText != null)

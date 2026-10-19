@@ -288,6 +288,7 @@ namespace Kitchen.Runtime
                 inputManager.MoveCookerRequested += OnMoveCookerRequested;
                 inputManager.MoveStaffRequested += OnMoveStaffRequested;
                 inputManager.CookerContextRequested += OnCookerContextRequested;
+                inputManager.RotateCookerRequested += OnRotateCookerRequested;
             }
 
             initialized = true;
@@ -440,6 +441,7 @@ namespace Kitchen.Runtime
                 inputManager.MoveCookerRequested -= OnMoveCookerRequested;
                 inputManager.MoveStaffRequested -= OnMoveStaffRequested;
                 inputManager.CookerContextRequested -= OnCookerContextRequested;
+                inputManager.RotateCookerRequested -= OnRotateCookerRequested;
             }
 
             workManager?.Shutdown();
@@ -545,14 +547,14 @@ namespace Kitchen.Runtime
         }
 
         /// <summary>Player asked to buy and place a cooker. Returns true when it was placed.</summary>
-        public bool TryBuildCooker(CookerDefinition definition, Vector2Int cell)
+        public bool TryBuildCooker(CookerDefinition definition, Vector2Int cell, CookerFacing facing = CookerFacing.North)
         {
             if (definition == null)
             {
                 return false;
             }
 
-            CookerRuntime created = cookerManager != null ? cookerManager.TryBuildCooker(definition, cell) : null;
+            CookerRuntime created = cookerManager != null ? cookerManager.TryBuildCooker(definition, cell, facing) : null;
             if (created != null)
             {
                 inputManager?.ExitBuildMode();
@@ -578,6 +580,11 @@ namespace Kitchen.Runtime
         public bool TryMoveSelectedStaff(Vector2Int direction)
         {
             return staffManager != null && staffManager.TryMoveSelected(direction);
+        }
+
+        public bool TryRotateCooker(CookerRuntime cooker)
+        {
+            return cookerManager != null && cookerManager.TryRotateCooker(cooker);
         }
 
         /// <summary>Player asked to delete the selected cooker.</summary>
@@ -625,7 +632,7 @@ namespace Kitchen.Runtime
                 return;
             }
 
-            Notify($"正在放置 {definition.DisplayName}：左键点空地，Esc 或右键取消。", MessageKind.Info);
+            Notify($"正在放置 {definition.DisplayName}：R 旋转，左键放置，Esc 或右键取消。", MessageKind.Info);
         }
 
         private void OnCancelRequested()
@@ -651,6 +658,11 @@ namespace Kitchen.Runtime
         private void OnCookerContextRequested(CookerRuntime cooker)
         {
             HandleCookerClicked(cooker);
+        }
+
+        private void OnRotateCookerRequested(CookerRuntime cooker)
+        {
+            TryRotateCooker(cooker);
         }
 
         // ------------------------------------------------------------------ test / tuning hooks

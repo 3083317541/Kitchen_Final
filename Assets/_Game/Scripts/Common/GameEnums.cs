@@ -1,5 +1,50 @@
+using UnityEngine;
+
 namespace Kitchen.Core
 {
+    public enum CookerFacing
+    {
+        North = 0,
+        East = 1,
+        South = 2,
+        West = 3
+    }
+
+    public static class CookerFacingUtility
+    {
+        public static CookerFacing Normalize(CookerFacing facing)
+        {
+            return (CookerFacing)(((int)facing % 4 + 4) % 4);
+        }
+
+        public static CookerFacing Clockwise(CookerFacing facing)
+        {
+            return Normalize((CookerFacing)((int)facing + 1));
+        }
+
+        public static Vector2Int Offset(CookerFacing facing)
+        {
+            switch (Normalize(facing))
+            {
+                case CookerFacing.East: return Vector2Int.right;
+                case CookerFacing.South: return Vector2Int.down;
+                case CookerFacing.West: return Vector2Int.left;
+                default: return Vector2Int.up;
+            }
+        }
+
+        public static string Label(CookerFacing facing)
+        {
+            switch (Normalize(facing))
+            {
+                case CookerFacing.East: return "东";
+                case CookerFacing.South: return "南";
+                case CookerFacing.West: return "西";
+                default: return "北";
+            }
+        }
+    }
+
     /// <summary>Broad category of an item. Used for UI grouping and validation.</summary>
     public enum ItemCategory
     {

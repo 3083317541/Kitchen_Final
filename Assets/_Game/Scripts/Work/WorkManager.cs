@@ -106,8 +106,8 @@ namespace Kitchen.Work
                     if (!cooker.HasAnyOutput)
                     {
                         cooker.StatusText = cooker.LockedRecipe != null
-                            ? "已暂停，等待指派相邻员工"
-                            : "空闲（需要指派相邻员工）";
+                            ? "已暂停，等待正面操作格的员工"
+                            : "空闲（需员工在正面操作格接任务）";
                     }
                     else
                     {

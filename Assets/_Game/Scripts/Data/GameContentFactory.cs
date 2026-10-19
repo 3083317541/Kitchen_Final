@@ -281,7 +281,7 @@ namespace Kitchen.Data
             spec.Tutorial.Add("第一步：左键选中厨师，用 WASD 移动到空格。");
             spec.Tutorial.Add("第二步：在左侧商店购买切菜台，然后点击一个空格子放置。");
             spec.Tutorial.Add("第三步：同样方式购买并放置组装台。");
-            spec.Tutorial.Add("第四步：让厨师走到设备上下左右的相邻空格，点击设备指定任务。");
+            spec.Tutorial.Add("第四步：R 旋转设备，让厨师走到正面操作格，点击设备指定任务。");
 
             spec.RewardStaff = 1;
             spec.RewardCookers.Add(Ids.FryingPan);

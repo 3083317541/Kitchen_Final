@@ -18,11 +18,12 @@ namespace Kitchen.Cookers
         private readonly List<ItemStack> slots = new List<ItemStack>();
         private readonly List<ItemStack> outputs = new List<ItemStack>();
 
-        public CookerRuntime(int cookerId, CookerDefinition definition, Vector2Int gridPosition)
+        public CookerRuntime(int cookerId, CookerDefinition definition, Vector2Int gridPosition, CookerFacing facing = CookerFacing.North)
         {
             Id = cookerId;
             Definition = definition;
             GridPosition = gridPosition;
+            Facing = CookerFacingUtility.Normalize(facing);
         }
 
         /// <summary>
@@ -44,6 +45,10 @@ namespace Kitchen.Cookers
         public CookerDefinition Definition { get; private set; }
 
         public Vector2Int GridPosition { get; internal set; }
+
+        public CookerFacing Facing { get; internal set; }
+
+        public Vector2Int WorkPosition => GridPosition + CookerFacingUtility.Offset(Facing);
 
         /// <summary>Grid cell centre in world space.</summary>
         public Vector3 WorldPosition { get; internal set; }

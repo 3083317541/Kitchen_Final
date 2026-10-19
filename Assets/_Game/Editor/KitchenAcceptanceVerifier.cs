@@ -245,6 +245,7 @@ namespace Kitchen.EditorTools
             ScenarioCampaign();
             ScenarioCookerControls();
             ScenarioScheduling();
+            ScenarioOperationPositions();
             ScenarioSceneScriptGuids();
             ScenarioFinalConsistency();
         }
@@ -724,7 +725,13 @@ namespace Kitchen.EditorTools
                     continue;
                 }
 
-                entries.Add(RelativePath(root.transform, component.transform) + ":" + component.GetType().Name);
+                string path = RelativePath(root.transform, component.transform);
+                if (root.GetComponent<CookerView>() != null && path.StartsWith("WorkPositionIndicator/", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                entries.Add(path + ":" + component.GetType().Name);
             }
 
             entries.Sort(StringComparer.Ordinal);
@@ -2135,6 +2142,8 @@ namespace Kitchen.EditorTools
             StaffRuntime employee = runtime.AllStaff[0];
             Vector2Int choppingPosition = chopping.GridPosition;
             Vector2Int panPosition = pan.GridPosition;
+            CookerFacing choppingFacing = chopping.Facing;
+            CookerFacing panFacing = pan.Facing;
             string preferredRecipe = chopping.PreferredRecipeId;
 
             try
@@ -2144,6 +2153,7 @@ namespace Kitchen.EditorTools
                 Relocate(employee, new Vector2Int(2, 2));
                 bool arranged = runtime.Cookers.TryMoveCooker(chopping, new Vector2Int(2, 3)) &&
                     runtime.Cookers.TryMoveCooker(pan, new Vector2Int(3, 2));
+                arranged &= FaceCooker(chopping, CookerFacing.South) && FaceCooker(pan, CookerFacing.West);
                 Expect("scheduling_work_positions", arranged, "chopping and heating share the work position (2,2).");
                 if (!arranged)
                 {
@@ -2249,8 +2259,140 @@ namespace Kitchen.EditorTools
                 ParkAllStaff();
                 runtime.Cookers.TryMoveCooker(pan, panPosition);
                 runtime.Cookers.TryMoveCooker(chopping, choppingPosition);
+                FaceCooker(chopping, choppingFacing);
+                FaceCooker(pan, panFacing);
                 chopping.PreferredRecipeId = preferredRecipe;
             }
+        }
+
+        private static void ScenarioOperationPositions()
+        {
+            ResetInventory();
+            ParkAllStaff();
+            CookerRuntime chopping = FindCooker(GameContentFactory.Ids.ChoppingStation);
+            CookerRuntime pan = FindCooker(GameContentFactory.Ids.FryingPan);
+            StaffRuntime employee = runtime.AllStaff[0];
+            StaffRuntime helper = runtime.AllStaff[1];
+            Vector2Int choppingPosition = chopping.GridPosition;
+            Vector2Int panPosition = pan.GridPosition;
+            CookerFacing choppingFacing = chopping.Facing;
+            CookerFacing panFacing = pan.Facing;
+            string preferredRecipe = chopping.PreferredRecipeId;
+
+            try
+            {
+                Relocate(helper, new Vector2Int(0, 3));
+                Relocate(runtime.AllStaff[2], new Vector2Int(4, 2));
+                Relocate(employee, new Vector2Int(2, 2));
+                bool arranged = runtime.Cookers.TryMoveCooker(chopping, new Vector2Int(2, 3)) &&
+                    runtime.Cookers.TryMoveCooker(pan, new Vector2Int(3, 2)) &&
+                    FaceCooker(chopping, CookerFacing.South) && FaceCooker(pan, CookerFacing.West);
+                Expect("orientation_shared_work_cell", arranged && chopping.WorkPosition == pan.WorkPosition &&
+                    runtime.Cookers.CountWorkPositionUsers(new Vector2Int(2, 2)) == 2,
+                    "two facing devices may share one employee cell without reserving it twice.");
+                if (!arranged)
+                {
+                    return;
+                }
+
+                Relocate(employee, new Vector2Int(1, 3));
+                Expect("orientation_side_operation_refused", !runtime.Staff.TryAssignCooker(employee, chopping),
+                    "being adjacent on the side is insufficient to operate a device.");
+                Relocate(employee, new Vector2Int(2, 4));
+                Expect("orientation_back_operation_refused", !runtime.Staff.TryAssignCooker(employee, chopping),
+                    "the back of a device cannot activate its work.");
+                Relocate(employee, new Vector2Int(2, 2));
+                chopping.PreferredRecipeId = GameContentFactory.Ids.ChopCabbage;
+                runtime.GrantItem(Item(GameContentFactory.Ids.Cabbage), 3);
+                runtime.GrantItem(Item(GameContentFactory.Ids.RawMeatSlice), 2);
+                bool assigned = runtime.Staff.TryAssignCooker(employee, chopping);
+                Advance(0.65f);
+                int cuts = chopping.WorkTicks;
+                Expect("orientation_front_operation", assigned && chopping.IsActive && cuts > 0,
+                    "the front work position activates an explicitly assigned employee.");
+                Expect("orientation_shared_cell_exclusive", !runtime.Grid.IsFreeForStaff(chopping.WorkPosition, helper.Id) &&
+                    !runtime.Staff.TryAssignCooker(helper, pan),
+                    "a second employee cannot occupy or remotely operate the shared work cell.");
+
+                runtime.HandleStaffClicked(employee);
+                runtime.HandleCookerClicked(chopping);
+                runtime.Input.RequestRotate();
+                Expect("orientation_rotation_releases_task", chopping.Facing == CookerFacing.West &&
+                    employee.AssignedCookerId == 0 && !chopping.IsActive && chopping.WorkTicks == cuts,
+                    "the rotation input releases attendance while preserving manual work progress.");
+                bool fullTurn = runtime.TryRotateCooker(chopping) && runtime.TryRotateCooker(chopping) && runtime.TryRotateCooker(chopping);
+                Expect("orientation_full_turn", fullTurn && chopping.Facing == CookerFacing.South &&
+                    chopping.WorkPosition == new Vector2Int(2, 2), "four clockwise turns restore the original work position.");
+                Transform visual = chopping.View.transform.Find("Visual");
+                Expect("orientation_model_and_indicator", chopping.View.HasWorkPositionIndicator && visual != null &&
+                    Vector3.Dot(visual.forward, Vector3.back) > 0.99f,
+                    "the model and facing marker follow the logical front direction.");
+
+                bool split = FaceCooker(pan, CookerFacing.North);
+                Relocate(helper, pan.WorkPosition);
+                Expect("orientation_split_allows_parallel_work", split && runtime.Staff.TryAssignCooker(employee, chopping) &&
+                    runtime.Staff.TryAssignCooker(helper, pan) && chopping.IsActive && pan.IsActive,
+                    "separating the work positions allows two employees to work concurrently.");
+                Advance(pan.Definition.PreparationDuration + 0.1f);
+                CookerFacing heatingFacing = pan.Facing;
+                Expect("orientation_busy_heater_cannot_rotate", pan.IsHeating && !runtime.TryRotateCooker(pan) && pan.Facing == heatingFacing,
+                    "an active heating batch cannot be rotated away from its collection position.");
+
+                int money = runtime.Money;
+                Expect("orientation_invalid_build_no_charge", !runtime.TryBuildCooker(chopping.Definition,
+                    new Vector2Int(1, 4), CookerFacing.North) && runtime.Money == money,
+                    "a build with an out-of-bounds front is refused without charging money.");
+                Expect("orientation_blocked_build_no_charge", !runtime.TryBuildCooker(chopping.Definition,
+                    new Vector2Int(1, 3), CookerFacing.East) && runtime.Money == money,
+                    "a build whose front contains another device is refused without charging money.");
+
+                runtime.Input.SetPointerOverUiOverride(true, true);
+                CookerFacing beforeUi = chopping.Facing;
+                runtime.Input.RequestRotate();
+                Expect("orientation_ui_blocks_rotation", chopping.Facing == beforeUi, "UI hover suppresses world rotation input.");
+                runtime.Input.SetPointerOverUiOverride(false, false);
+                runtime.Input.RequestBuildCooker(chopping.Definition);
+                CookerFacing pending = runtime.Input.PendingFacing;
+                runtime.Input.RequestRotate();
+                Expect("orientation_preview_rotation_free", runtime.Input.PendingFacing == CookerFacingUtility.Clockwise(pending) &&
+                    runtime.Money == money && chopping.Facing == beforeUi,
+                    "build rotation changes only the preview direction and costs nothing.");
+                runtime.Input.CancelCurrentInteraction();
+
+                ResetInventory();
+                ParkAllStaff();
+                runtime.Cookers.TryMoveCooker(chopping, new Vector2Int(1, 4));
+                FaceCooker(chopping, CookerFacing.North);
+                bool blocked = !runtime.Cookers.IsWorkPositionOpen(chopping.WorkPosition);
+                bool recovered = runtime.TryRotateCooker(chopping) && runtime.Cookers.IsWorkPositionOpen(chopping.WorkPosition);
+                Expect("orientation_edge_rotation_recovers", blocked && recovered,
+                    "rotation can pass through an invalid front and recover at the next valid direction.");
+            }
+            finally
+            {
+                runtime.Input.SetPointerOverUiOverride(false, false);
+                runtime.Input.CancelCurrentInteraction();
+                ResetInventory();
+                ParkAllStaff();
+                runtime.Cookers.TryMoveCooker(pan, panPosition);
+                runtime.Cookers.TryMoveCooker(chopping, choppingPosition);
+                FaceCooker(chopping, choppingFacing);
+                FaceCooker(pan, panFacing);
+                chopping.PreferredRecipeId = preferredRecipe;
+            }
+        }
+
+        private static bool FaceCooker(CookerRuntime cooker, CookerFacing facing)
+        {
+            for (int turn = 0; turn < 4 && cooker.Facing != facing; turn++)
+            {
+                if (!runtime.TryRotateCooker(cooker))
+                {
+                    return false;
+                }
+            }
+
+            return cooker.Facing == facing;
         }
 
         private static void ScenarioWorldGeometry()
@@ -2703,6 +2845,11 @@ namespace Kitchen.EditorTools
             };
 
             HashSet<Vector2Int> taken = new HashSet<Vector2Int>();
+            for (int index = 0; index < runtime.Cookers.Cookers.Count; index++)
+            {
+                taken.Add(runtime.Cookers.Cookers[index].WorkPosition);
+            }
+
             for (int i = 0; i < runtime.AllStaff.Count; i++)
             {
                 StaffRuntime staff = runtime.AllStaff[i];
@@ -2747,20 +2894,16 @@ namespace Kitchen.EditorTools
             CookerRuntime targetCooker = runtime.Cookers.GetCookerAt(cell);
             if (targetCooker != null)
             {
-                Vector2Int[] directions = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
-                for (int directionIndex = 0; directionIndex < directions.Length; directionIndex++)
+                Vector2Int candidate = targetCooker.WorkPosition;
+                if (runtime.Grid.IsFreeForStaff(candidate, staff.Id))
                 {
-                    Vector2Int candidate = cell + directions[directionIndex];
-                    if (runtime.Grid.IsFreeForStaff(candidate, staff.Id))
+                    Relocate(staff, candidate);
+                    if (!runtime.Staff.TryAssignCooker(staff, targetCooker))
                     {
-                        Relocate(staff, candidate);
-                        if (!runtime.Staff.TryAssignCooker(staff, targetCooker))
-                        {
-                            throw new InvalidOperationException($"Cannot assign employee {staff.Id} to cooker {targetCooker.Id}.");
-                        }
-
-                        return;
+                        throw new InvalidOperationException($"Cannot assign employee {staff.Id} to cooker {targetCooker.Id}.");
                     }
+
+                    return;
                 }
 
                 throw new InvalidOperationException($"Cooker {targetCooker.Id} has no available work position.");

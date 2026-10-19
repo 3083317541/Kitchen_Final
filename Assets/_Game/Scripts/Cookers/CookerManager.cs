@@ -152,9 +152,8 @@ namespace Kitchen.Cookers
             for (int index = 0; index < employees.Count; index++)
             {
                 Entities.StaffRuntime employee = employees[index];
-                Vector2Int offset = employee.GridPosition - cooker.GridPosition;
                 if (!employee.IsMoving && employee.AssignedCookerId == cooker.Id &&
-                    Mathf.Abs(offset.x) + Mathf.Abs(offset.y) == 1)
+                    employee.GridPosition == cooker.WorkPosition)
                 {
                     return employee.Id;
                 }
@@ -188,12 +187,23 @@ namespace Kitchen.Cookers
                     continue;
                 }
 
-                CreateCooker(placement.Definition, placement.GridPosition, true);
+                CreateCooker(placement.Definition, placement.GridPosition, true, placement.Facing);
+            }
+
+            for (int index = 0; index < cookers.Count; index++)
+            {
+                CookerRuntime cooker = cookers[index];
+                for (int attempt = 0; attempt < 4 && !IsWorkPositionOpen(cooker.WorkPosition); attempt++)
+                {
+                    cooker.Facing = CookerFacingUtility.Clockwise(cooker.Facing);
+                }
+
+                cooker.View?.ApplyState();
             }
         }
 
         /// <summary>Creates a cooker without charging for it. Used for level setup and tests.</summary>
-        public CookerRuntime CreateCooker(CookerDefinition definition, Vector2Int gridPosition, bool free)
+        public CookerRuntime CreateCooker(CookerDefinition definition, Vector2Int gridPosition, bool free, CookerFacing facing = CookerFacing.North)
         {
             if (definition == null)
             {
@@ -224,7 +234,7 @@ namespace Kitchen.Cookers
 
             int id = nextCookerId++;
             Vector3 world = Runtime.Grid.GridToWorld(gridPosition);
-            CookerRuntime cooker = new CookerRuntime(id, definition, gridPosition)
+            CookerRuntime cooker = new CookerRuntime(id, definition, gridPosition, facing)
             {
                 Owner = Runtime
             };
@@ -272,7 +282,7 @@ namespace Kitchen.Cookers
         }
 
         /// <summary>Player facing build request: the full affordability + placement + charge flow.</summary>
-        public CookerRuntime TryBuildCooker(CookerDefinition definition, Vector2Int gridPosition)
+        public CookerRuntime TryBuildCooker(CookerDefinition definition, Vector2Int gridPosition, CookerFacing facing = CookerFacing.North)
         {
             if (definition == null)
             {
@@ -298,9 +308,79 @@ namespace Kitchen.Cookers
                 return null;
             }
 
+            if (!IsWorkPositionOpen(gridPosition + CookerFacingUtility.Offset(facing)))
+            {
+                Runtime.Notify("正面操作格在厨房外或被设备挡住，请按 R 旋转或换个位置。", MessageKind.Warning);
+                return null;
+            }
+
             // CreateCooker re-checks affordability and performs the charge, so a failure here can
             // never leave a half built cooker or a deducted balance behind.
-            return CreateCooker(definition, gridPosition, false);
+            return CreateCooker(definition, gridPosition, false, facing);
+        }
+
+        public bool IsWorkPositionOpen(Vector2Int cell, int ignoreCookerId = 0)
+        {
+            return Runtime.Grid.InBounds(cell) &&
+                (Runtime.Grid.GetCookerId(cell) == 0 || Runtime.Grid.GetCookerId(cell) == ignoreCookerId);
+        }
+
+        public bool CanPlaceCooker(Vector2Int cell, CookerFacing facing)
+        {
+            return Runtime.Grid.IsFreeForCooker(cell) &&
+                IsWorkPositionOpen(cell + CookerFacingUtility.Offset(facing));
+        }
+
+        public int CountWorkPositionUsers(Vector2Int cell)
+        {
+            int count = 0;
+            for (int index = 0; index < cookers.Count; index++)
+            {
+                if (cookers[index].IsPlaced && cookers[index].WorkPosition == cell)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        public string DescribeWorkPosition(CookerRuntime cooker)
+        {
+            if (!IsWorkPositionOpen(cooker.WorkPosition))
+            {
+                return "操作格受阻";
+            }
+
+            int staffId = Runtime.Grid.GetStaffId(cooker.WorkPosition);
+            string status = staffId == 0 ? "空闲" :
+                TryGetWorkingStaffId(cooker) == staffId ? "在岗" : "有人";
+            int count = CountWorkPositionUsers(cooker.WorkPosition);
+            return count > 1 ? $"{status} · 共用{count}台" : status;
+        }
+
+        public bool TryRotateCooker(CookerRuntime cooker)
+        {
+            if (cooker == null || cooker.Owner != Runtime || !cooker.IsPlaced)
+            {
+                return false;
+            }
+
+            if (cooker.Definition.WorkType == WorkType.Timed &&
+                (cooker.LockedRecipe != null || cooker.HasAnyOutput ||
+                 cooker.State == CookerState.Burnt || cooker.State == CookerState.Cleaning))
+            {
+                Runtime.Notify("请先完成加热、取出和清理，再旋转设备。", MessageKind.Warning);
+                return false;
+            }
+
+            cooker.Facing = CookerFacingUtility.Clockwise(cooker.Facing);
+            Runtime.Staff.ReleaseCooker(cooker.Id);
+            Tick(0f);
+            bool open = IsWorkPositionOpen(cooker.WorkPosition);
+            Runtime.Notify(open ? $"设备朝{CookerFacingUtility.Label(cooker.Facing)}，请从正面操作。" :
+                "正面操作格被挡或越界，请继续旋转或移动设备。", open ? MessageKind.Info : MessageKind.Warning);
+            return true;
         }
 
         // ------------------------------------------------------------------ movement
@@ -479,7 +559,7 @@ namespace Kitchen.Cookers
             }
 
             bool assigned = Runtime.Staff.TryAssignCooker(Runtime.Staff.Selected, cooker);
-            Runtime.Notify(assigned ? "员工正在处理设备产出。" : "请选择相邻的员工来处理产出。",
+            Runtime.Notify(assigned ? "员工正在处理设备产出。" : "请选择站在正面操作格的员工来处理产出。",
                 assigned ? MessageKind.Info : MessageKind.Warning);
             return assigned;
         }

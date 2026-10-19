@@ -48,7 +48,7 @@ namespace Kitchen.Cookers
                     cooker.ResetProgress();
                     cooker.State = CookerState.Burnt;
                     cooker.StatusText = "食物烧焦，需要员工清理";
-                    cooker.Owner?.Notify("食物烧焦了，请指派相邻员工清理设备。", MessageKind.Warning);
+                    cooker.Owner?.Notify("食物烧焦了，请让员工到正面操作格清理设备。", MessageKind.Warning);
                     return;
                 }
 

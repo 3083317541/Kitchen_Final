@@ -37,6 +37,7 @@ namespace Kitchen.Input
 
         private InteractionMode mode = InteractionMode.Normal;
         private CookerDefinition pendingCooker;
+        private CookerFacing pendingFacing;
         private CookerRuntime pendingMoveCooker;
         private ItemDefinition selectedIngredient;
         private PlacementPreview preview;
@@ -70,6 +71,8 @@ namespace Kitchen.Input
         /// <summary>Raised when the player wants the cooker details panel opened.</summary>
         public event Action<CookerRuntime> CookerContextRequested;
 
+        public event Action<CookerRuntime> RotateCookerRequested;
+
         /// <summary>Raised when the player picked an ingredient in the selection mode.</summary>
         public event Action<ItemDefinition> IngredientSelected;
 
@@ -84,6 +87,8 @@ namespace Kitchen.Input
         public InteractionMode Mode => mode;
 
         public CookerDefinition PendingCooker => pendingCooker;
+
+        public CookerFacing PendingFacing => pendingFacing;
 
         public CookerRuntime PendingMoveCooker => pendingMoveCooker;
 
@@ -189,6 +194,7 @@ namespace Kitchen.Input
 
             ExitMoveCookerMode();
             pendingCooker = definition;
+            pendingFacing = CookerFacing.North;
             SetMode(InteractionMode.Build);
 
             if (preview == null)
@@ -305,6 +311,10 @@ namespace Kitchen.Input
             // 3. Keyboard movement, routed by the current mode.
             HandleMovementKeys(deltaTime);
             HandleCatalogueKeys();
+            if (!PointerOverUI && UnityEngine.Input.GetKeyDown(KeyCode.R))
+            {
+                RequestRotate();
+            }
 
             if (PointerOverUI)
             {
@@ -445,7 +455,7 @@ namespace Kitchen.Input
             // A missing pending definition means the highlight is being driven on its own; the cell is
             // still legal in that case, so the highlight logic does not depend on the purchase state.
             bool affordable = pendingCooker == null || runtime.CanAfford(pendingCooker.Price);
-            bool legal = inBounds && free && affordable;
+            bool legal = inBounds && free && affordable && runtime.Cookers.CanPlaceCooker(cell, pendingFacing);
 
             HoveredCellLegal = legal;
 
@@ -457,6 +467,9 @@ namespace Kitchen.Input
                     inBounds ? cell : runtime.Grid.WorldToGridClamped(worldCamera.transform.position));
                 preview.Show(pendingCooker, world, cell);
                 preview.SetValid(legal, cell);
+                Vector2Int workCell = cell + CookerFacingUtility.Offset(pendingFacing);
+                preview.ShowWorkPosition(pendingFacing, runtime.Grid.CellSize,
+                    runtime.Cookers.IsWorkPositionOpen(workCell), runtime.Grid.HasStaff(workCell));
             }
 
             ClearCellHighlights();
@@ -489,7 +502,7 @@ namespace Kitchen.Input
             }
 
             CookerDefinition definition = pendingCooker;
-            bool placed = runtime.TryBuildCooker(definition, cell);
+            bool placed = runtime.TryBuildCooker(definition, cell, pendingFacing);
 
             if (runtime.Grid != null && runtime.Grid.View != null)
             {
@@ -580,6 +593,30 @@ namespace Kitchen.Input
         }
 
         // ------------------------------------------------------------------ keyboard
+
+        public void RequestRotate()
+        {
+            if (PointerOverUI)
+            {
+                return;
+            }
+
+            if (mode == InteractionMode.Build)
+            {
+                pendingFacing = CookerFacingUtility.Clockwise(pendingFacing);
+                UpdateBuildPreview(HoveredCell);
+                return;
+            }
+
+            if (mode == InteractionMode.Normal || mode == InteractionMode.MoveCooker)
+            {
+                CookerRuntime cooker = mode == InteractionMode.MoveCooker ? pendingMoveCooker : ActiveRuntime?.Cookers.Selected;
+                if (cooker != null)
+                {
+                    RotateCookerRequested?.Invoke(cooker);
+                }
+            }
+        }
 
         private void HandleMovementKeys(float deltaTime)
         {

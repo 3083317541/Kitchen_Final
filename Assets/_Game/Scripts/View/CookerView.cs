@@ -36,6 +36,7 @@ namespace Kitchen.View
         public const float MaxFootprint = 1.8f;
 
         private Transform visualRoot;
+        private Quaternion visualBaseRotation = Quaternion.identity;
         private Renderer accentRenderer;
         private Renderer bodyRenderer;
         private Material activeAccentInstance;
@@ -43,6 +44,9 @@ namespace Kitchen.View
         private bool isSelected;
         private bool isActive;
         private CookerDefinition definition;
+        private WorkPositionIndicator workPositionIndicator;
+
+        public bool HasWorkPositionIndicator => workPositionIndicator != null && workPositionIndicator.IsVisible;
 
         /// <summary>Configuration this view was built from. Null until Configure is called.</summary>
         public CookerDefinition Definition => definition;
@@ -117,6 +121,11 @@ namespace Kitchen.View
             }
 
             EnsureBuilt();
+            if (workPositionIndicator == null)
+            {
+                float cellSize = runtime.Owner != null ? runtime.Owner.Grid.CellSize : 2f;
+                workPositionIndicator = new WorkPositionIndicator(transform, cellSize, bodySize.y + 0.30f);
+            }
             ApplyState();
         }
 
@@ -135,6 +144,7 @@ namespace Kitchen.View
                 if (existing != null)
                 {
                     visualRoot = existing;
+                    visualBaseRotation = visualRoot.localRotation;
                     visualRoot.gameObject.name = VisualRootName;
                 }
             }
@@ -438,6 +448,17 @@ namespace Kitchen.View
             if (visualRoot != null)
             {
                 visualRoot.localPosition = new Vector3(0f, selected ? 0.12f : 0f, 0f);
+                if (Runtime != null)
+                {
+                    visualRoot.localRotation = Quaternion.Euler(0f, (int)Runtime.Facing * 90f, 0f) * visualBaseRotation;
+                }
+            }
+
+            if (Runtime != null && Runtime.Owner != null && workPositionIndicator != null)
+            {
+                bool open = Runtime.Owner.Cookers.IsWorkPositionOpen(Runtime.WorkPosition);
+                bool occupied = Runtime.Owner.Grid.HasStaff(Runtime.WorkPosition);
+                workPositionIndicator.Refresh(Runtime.Facing, open, occupied, selected);
             }
         }
 

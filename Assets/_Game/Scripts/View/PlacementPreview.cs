@@ -31,6 +31,11 @@ namespace Kitchen.View
         private GameObject spawnItemRoot;
         private CookerDefinition currentDefinition;
         private bool visible;
+        private WorkPositionIndicator workPositionIndicator;
+
+        public CookerFacing Facing { get; private set; }
+
+        public Vector2Int WorkCell => Cell + CookerFacingUtility.Offset(Facing);
 
         /// <summary>True when the ghost is currently displayed.</summary>
         public bool IsVisible => visible;
@@ -117,6 +122,23 @@ namespace Kitchen.View
             transform.position = new Vector3(worldPosition.x, worldPosition.y, worldPosition.z);
         }
 
+        public void ShowWorkPosition(CookerFacing facing, float cellSize, bool open, bool occupied)
+        {
+            Facing = CookerFacingUtility.Normalize(facing);
+            if (ghostRoot != null)
+            {
+                ghostRoot.localRotation = Quaternion.Euler(0f, (int)Facing * 90f, 0f);
+            }
+
+            if (workPositionIndicator == null)
+            {
+                workPositionIndicator = new WorkPositionIndicator(transform, cellSize, ghostHeight + 0.18f);
+            }
+
+            workPositionIndicator.SetVisible(true);
+            workPositionIndicator.Refresh(Facing, open, occupied, true);
+        }
+
         /// <summary>Switches the ghost between its legal and illegal look.</summary>
         public void SetValid(bool valid, Vector2Int cell)
         {
@@ -139,6 +161,7 @@ namespace Kitchen.View
         public void Hide()
         {
             visible = false;
+            workPositionIndicator?.SetVisible(false);
             if (ghostRoot != null)
             {
                 ghostRoot.gameObject.SetActive(false);

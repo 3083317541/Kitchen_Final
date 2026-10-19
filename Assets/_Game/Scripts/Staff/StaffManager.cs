@@ -219,10 +219,9 @@ namespace Kitchen.Staff
                 return false;
             }
 
-            Vector2Int offset = cooker.GridPosition - employee.GridPosition;
-            if (employee.IsMoving || Mathf.Abs(offset.x) + Mathf.Abs(offset.y) != 1)
+            if (employee.IsMoving || employee.GridPosition != cooker.WorkPosition)
             {
-                Runtime.Notify("先让员工走到设备上下左右的相邻空格，再点击设备指定任务。", MessageKind.Warning);
+                Runtime.Notify($"请先让员工到正面操作格 {cooker.WorkPosition.x},{cooker.WorkPosition.y}，再点击设备。", MessageKind.Warning);
                 return false;
             }
 
