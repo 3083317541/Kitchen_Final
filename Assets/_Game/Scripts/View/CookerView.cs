@@ -180,6 +180,41 @@ namespace Kitchen.View
             }
 
             EnsureClickCollider();
+            RefreshMaterials();
+        }
+
+        /// <summary>
+        /// Re-resolves the shared materials from the asset library. A prefab saved by an older build
+        /// can carry a null material reference, which shows as Unity's magenta error shader; calling
+        /// this repairs such an instance without regenerating anything.
+        /// </summary>
+        public void RefreshMaterials()
+        {
+            if (visualRoot == null)
+            {
+                return;
+            }
+
+            MeshRenderer[] renderers = visualRoot.GetComponentsInChildren<MeshRenderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                MeshRenderer renderer = renderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                if (renderer.sharedMaterial != null && renderer.sharedMaterial.shader != null &&
+                    renderer.sharedMaterial.shader.name != "Hidden/InternalErrorShader")
+                {
+                    continue;
+                }
+
+                // Fall back to the body colour so the object stays visible instead of magenta.
+                renderer.sharedMaterial = bodyMaterial != null
+                    ? bodyMaterial
+                    : Whitebox.SolidMaterial(bodyColor, "CookerBody");
+            }
         }
 
         private void BuildWhitebox()
@@ -292,7 +327,7 @@ namespace Kitchen.View
                 case CookerKind.ChoppingStation:
                     AddBox("ChoppingBoard", new Vector3(0f, top + 0.03f, 0f),
                         new Vector3(size.x * 0.62f, 0.06f, size.z * 0.46f),
-                        Whitebox.SolidMaterial(new Color(0.62f, 0.46f, 0.28f), "Board"));
+                        Whitebox.SolidMaterial(Whitebox.DetailBoardColor, "Board"));
                     AddBox("Blade", new Vector3(size.x * 0.2f, top + 0.14f, 0f),
                         new Vector3(0.03f, 0.16f, size.z * 0.34f), metal);
                     AddBox("BladeHandle", new Vector3(size.x * 0.2f, top + 0.14f, -size.z * 0.28f),
@@ -325,7 +360,7 @@ namespace Kitchen.View
                         new Vector3(size.x * 0.94f, 0.6f, size.z * 0.94f), bodyRendererMaterial());
                     AddCylinder("Porthole", new Vector3(0f, top + 0.32f, size.z * 0.48f),
                         new Vector3(0.24f, 0.02f, 0.24f),
-                        Whitebox.SolidMaterial(new Color(0.55f, 0.78f, 0.85f), "Glass"),
+                        Whitebox.SolidMaterial(Whitebox.DetailGlassColor, "Glass"),
                         new Vector3(90f, 0f, 0f));
                     AddBox("Vent", new Vector3(0f, top + 0.63f, 0f),
                         new Vector3(size.x * 0.5f, 0.04f, size.z * 0.5f), dark);

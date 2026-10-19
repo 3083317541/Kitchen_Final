@@ -81,6 +81,7 @@ namespace Kitchen.EditorTools
             BuildSelectionPanel(canvasGo.transform);
             BuildProgressPanel(canvasGo.transform);
             BuildNotificationPanel(canvasGo.transform);
+            BuildLevelClearPanel(canvasGo.transform);
 
             // Second pass: the font is written through the serialised field so it is guaranteed to
             // be the one saved with the scene. Doing this while each label is created is not enough,
@@ -212,6 +213,55 @@ namespace Kitchen.EditorTools
             RectTransform content = HorizontalGroup(panel, "NotificationContent", 0f, TextAlignmentOptions.Center);
             Text(content, "NotificationText", "-", FontBody, TextColor, TextAlignmentOptions.Center, 940f, 56f);
             panel.gameObject.SetActive(false);
+        }
+
+        // ------------------------------------------------------------------ level clear
+
+        /// <summary>
+        /// Full screen overlay shown when the last order of a level is completed.
+        ///
+        /// It covers everything and blocks raycasts, because the level is over: a click must not reach
+        /// the kitchen and buy a cooker behind the summary.
+        /// </summary>
+        private static void BuildLevelClearPanel(Transform canvas)
+        {
+            GameObject root = new GameObject("LevelClearPanel", typeof(RectTransform));
+            RectTransform rect = root.GetComponent<RectTransform>();
+            rect.SetParent(canvas, false);
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            Image dim = root.AddComponent<Image>();
+            dim.color = new Color(0.02f, 0.03f, 0.05f, 0.82f);
+            dim.raycastTarget = true;
+
+            // Centred card. Anchored to the middle with a fixed size so the text has a known width to
+            // wrap inside.
+            GameObject card = new GameObject("LevelClearCard", typeof(RectTransform));
+            RectTransform cardRect = card.GetComponent<RectTransform>();
+            cardRect.SetParent(rect, false);
+            cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+            cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+            cardRect.pivot = new Vector2(0.5f, 0.5f);
+            cardRect.sizeDelta = new Vector2(820f, 460f);
+
+            Image cardImage = card.AddComponent<Image>();
+            cardImage.color = new Color(0.10f, 0.12f, 0.16f, 0.98f);
+
+            RectTransform column = VerticalGroup(cardRect, "LevelClearColumn", 18f, TextAlignmentOptions.Center, 34);
+
+            Text(column, "LevelClearTitleText", "本关完成！", FontTitle + 8f, TextColor,
+                TextAlignmentOptions.Center, 0f, 70f, true);
+
+            Text(column, "LevelClearRewardText", "奖励：-", FontBody, TextMuted,
+                TextAlignmentOptions.Center, 0f, 150f, true);
+
+            Button(column, "LevelClearNextButton", "LevelClearNextButtonText", "进入下一关",
+                new Vector2(360f, 88f), ButtonColorServe, FontBody);
+
+            root.SetActive(false);
         }
 
         // ------------------------------------------------------------------ primitives
@@ -601,6 +651,12 @@ namespace Kitchen.EditorTools
 
             Set(so, "notificationPanel", FindPanel(canvas, "NotificationPanel"));
             Set(so, "notificationText", Find<TMP_Text>(canvas, "NotificationText"));
+
+            Set(so, "levelClearPanel", FindPanel(canvas, "LevelClearPanel"));
+            Set(so, "levelClearTitleText", Find<TMP_Text>(canvas, "LevelClearTitleText"));
+            Set(so, "levelClearRewardText", Find<TMP_Text>(canvas, "LevelClearRewardText"));
+            Set(so, "levelClearNextButton", Find<Button>(canvas, "LevelClearNextButton"));
+            Set(so, "levelClearNextButtonText", Find<TMP_Text>(canvas, "LevelClearNextButtonText"));
 
             so.ApplyModifiedPropertiesWithoutUndo();
         }

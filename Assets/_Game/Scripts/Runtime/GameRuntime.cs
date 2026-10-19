@@ -10,6 +10,7 @@ using Kitchen.Orders;
 using Kitchen.Recipes;
 using Kitchen.Staff;
 using Kitchen.UI;
+using Kitchen.View;
 using Kitchen.Work;
 using UnityEngine;
 
@@ -74,6 +75,10 @@ namespace Kitchen.Runtime
         [Header("UI")]
         [SerializeField] private UIManager uiManager;
 
+        [Header("Level flow")]
+        [Tooltip("Owns which level is built and what happens when it is cleared.")]
+        [SerializeField] private Kitchen.Level.LevelManager levelManager;
+
         [Header("Systems")]
         [SerializeField] private GridManager gridManager;
         [SerializeField] private CookerManager cookerManager;
@@ -115,6 +120,8 @@ namespace Kitchen.Runtime
         public OrderManager Orders => orderManager;
 
         public PlateReturnManager PlateReturns => plateReturnManager;
+
+        public Kitchen.Level.LevelManager Levels => levelManager;
 
         public InputManager Input => inputManager;
 
@@ -225,7 +232,12 @@ namespace Kitchen.Runtime
                 plateReturnManager.Configure(plateReturnMinSeconds, plateReturnMaxSeconds);
             }
 
-            // 3. Level content.
+            // Materials: the asset backed library is preferred so prefabs keep real material
+            // references. Without it Whitebox falls back to building materials in memory.
+            WhiteboxMaterialLibrary.Load();
+
+            // 3. Level content. The level manager decides which level the campaign is on.
+            levelManager?.Initialize(this);
             Level = ResolveLevelConfig();
             if (Level == null)
             {
@@ -297,6 +309,15 @@ namespace Kitchen.Runtime
 
         private LevelConfig ResolveLevelConfig()
         {
+            // The campaign position wins, so the menu can start any level. The inspector value is the
+            // fallback for a scene that has no level manager at all.
+            LevelConfig campaignLevel = levelManager != null ? levelManager.ResolveLevel() : null;
+            if (campaignLevel != null)
+            {
+                levelConfig = campaignLevel;
+                return campaignLevel;
+            }
+
             if (levelConfig != null)
             {
                 return levelConfig;
@@ -304,7 +325,8 @@ namespace Kitchen.Runtime
 
             if (loadFromResourcesWhenEmpty && !string.IsNullOrEmpty(resourcesLevelPath))
             {
-                LevelConfig loaded = Resources.Load<LevelConfig>(resourcesLevelPath);
+                string path = CampaignProgress.LevelResourcesPath(CampaignProgress.LevelNumber);
+                LevelConfig loaded = Resources.Load<LevelConfig>(path);
                 if (loaded != null)
                 {
                     levelConfig = loaded;

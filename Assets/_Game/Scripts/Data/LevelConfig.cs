@@ -35,8 +35,26 @@ namespace Kitchen.Data
         [SerializeField] private List<Vector2Int> staffSpawnOffsets = new List<Vector2Int>();
 
         [Header("Orders")]
-        [Tooltip("Orders are issued in this order. When the list ends the last entry repeats.")]
+        [Tooltip("Orders are issued in this order. The level is cleared once every entry has been completed; the list does not wrap.")]
         [SerializeField] private List<OrderDefinition> orderSequence = new List<OrderDefinition>();
+
+        [Header("Campaign")]
+        [Tooltip("1-based level number. Also selects the Resources asset 'Kitchen/Level_0N'.")]
+        [SerializeField] private int levelNumber = 1;
+        [SerializeField] private string levelTitle = "第一关";
+        [Tooltip("Level number loaded after this one is cleared. 0 means this is the last level.")]
+        [SerializeField] private int nextLevelNumber = 0;
+
+        [Tooltip("Tutorial hints shown at the start of the level, in order. Display only.")]
+        [SerializeField] private List<string> tutorialSteps = new List<string>();
+
+        [Header("Clear Reward")]
+        [Tooltip("Money granted when the level is cleared. Carried into the next level through CampaignProgress.")]
+        [SerializeField, Min(0)] private int rewardMoney = 0;
+        [Tooltip("Extra employees granted when the level is cleared.")]
+        [SerializeField, Min(0)] private int rewardStaffCount = 0;
+        [Tooltip("Cookers granted when the level is cleared. Displayed on the reward panel.")]
+        [SerializeField] private List<string> rewardCookerIds = new List<string>();
 
         [Header("Art Replacement")]
         [Tooltip("Employee prefab used for every chef. Empty falls back to the generated whitebox chef.")]
@@ -71,6 +89,72 @@ namespace Kitchen.Data
         public IReadOnlyList<Vector2Int> StaffSpawnOffsets => staffSpawnOffsets;
 
         public IReadOnlyList<OrderDefinition> OrderSequence => orderSequence;
+
+        /// <summary>1-based level number, also the Resources asset suffix.</summary>
+        public int LevelNumber => Mathf.Max(1, levelNumber);
+
+        /// <summary>Player facing level name, e.g. "第一关".</summary>
+        public string LevelTitle => string.IsNullOrEmpty(levelTitle) ? $"第 {LevelNumber} 关" : levelTitle;
+
+        /// <summary>Level loaded after this one is cleared, or 0 when this is the last level.</summary>
+        public int NextLevelNumber => Mathf.Max(0, nextLevelNumber);
+
+        public bool HasNextLevel => NextLevelNumber > 0;
+
+        /// <summary>Ordered tutorial hints for this level.</summary>
+        public IReadOnlyList<string> TutorialSteps => tutorialSteps;
+
+        public int RewardMoney => Mathf.Max(0, rewardMoney);
+
+        public int RewardStaffCount => Mathf.Max(0, rewardStaffCount);
+
+        public IReadOnlyList<string> RewardCookerIds => rewardCookerIds;
+
+        /// <summary>Human readable reward summary, or an empty string when the level grants nothing.</summary>
+        public string DescribeReward()
+        {
+            List<string> parts = new List<string>();
+
+            if (RewardStaffCount > 0)
+            {
+                parts.Add($"员工 ×{RewardStaffCount}");
+            }
+
+            for (int i = 0; i < rewardCookerIds.Count; i++)
+            {
+                if (!string.IsNullOrEmpty(rewardCookerIds[i]))
+                {
+                    CookerDefinition definition = FindCooker(rewardCookerIds[i]);
+                    parts.Add(definition != null ? definition.DisplayName : rewardCookerIds[i]);
+                }
+            }
+
+            if (RewardMoney > 0)
+            {
+                parts.Add($"金钱 {RewardMoney}");
+            }
+
+            return parts.Count > 0 ? string.Join("、", parts.ToArray()) : string.Empty;
+        }
+
+        /// <summary>Fills the campaign fields. Used by the editor generator.</summary>
+        public void SetCampaign(
+            int number,
+            string title,
+            int nextNumber,
+            IList<string> tutorial,
+            int moneyReward,
+            int staffReward,
+            IList<string> cookerRewards)
+        {
+            levelNumber = Mathf.Max(1, number);
+            levelTitle = title;
+            nextLevelNumber = Mathf.Max(0, nextNumber);
+            tutorialSteps = tutorial != null ? new List<string>(tutorial) : new List<string>();
+            rewardMoney = Mathf.Max(0, moneyReward);
+            rewardStaffCount = Mathf.Max(0, staffReward);
+            rewardCookerIds = cookerRewards != null ? new List<string>(cookerRewards) : new List<string>();
+        }
 
         public IReadOnlyList<ItemDefinition> Items => items;
 

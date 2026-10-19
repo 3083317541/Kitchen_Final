@@ -17,5 +17,5 @@ MonoBehaviour:
   dish: {fileID: 11400000, guid: 1da1e5a2de4ec0c4292b3c30d3ad3166, type: 2}
   dishCount: 1
   cleanPlatesRequired: 1
-  reward: 120
-  timeLimit: 120
+  reward: 100
+  timeLimit: 180

@@ -22,12 +22,25 @@ namespace Kitchen.EditorTools
         public const string ResourcesRoot = "Assets/_Game/Resources/Kitchen";
         public const string DataFolder = "Assets/_Game/Data";
         public const string LevelAssetPath = ResourcesRoot + "/Level_01.asset";
+
+        /// <summary>Sandbox level the acceptance suite drives.</summary>
+        public const string SandboxLevelPath = ResourcesRoot + "/Level_Sandbox.asset";
         public const string StrategyFolder = ResourcesRoot + "/WorkStrategies";
 
         /// <summary>Result of a generation pass: the level asset plus the work strategy assets.</summary>
         public class Result
         {
+            /// <summary>First campaign level. Kept for callers that predate the level list.</summary>
             public LevelConfig Level;
+
+            /// <summary>Every campaign level, in order.</summary>
+            public readonly List<LevelConfig> Levels = new List<LevelConfig>();
+
+            /// <summary>
+            /// Sandbox level used by the acceptance suite. Saved as an asset so every definition it
+            /// references is the persisted one, which is what carries the prefab and material links.
+            /// </summary>
+            public LevelConfig Sandbox;
 
             /// <summary>
             /// The content set that was authored. The prefab generator needs it to know which cookers
@@ -66,10 +79,10 @@ namespace Kitchen.EditorTools
                 SaveRecipes(content, mapping, result);
                 SaveOrders(content, mapping, result);
                 RemapInto(content, mapping);
-                SaveLevel(content, mapping, result);
+                SaveLevels(content, mapping, result);
                 RemapInto(content, mapping);
 
-                result.Level = content.Level;
+                result.Level = result.Levels.Count > 0 ? result.Levels[0] : content.Level;
                 result.Content = content;
             }
             finally
@@ -147,24 +160,48 @@ namespace Kitchen.EditorTools
             }
         }
 
-        private static void SaveLevel(GameContentFactory.Content content, Dictionary<ScriptableObject, ScriptableObject> mapping, Result result)
+        /// <summary>
+        /// Writes every campaign level as its own Resources asset, so the kitchen scene can load
+        /// "Kitchen/Level_0N" without a scene reference.
+        ///
+        /// The levels are created from the shared catalogue, which means one item/cooker/recipe set is
+        /// authored once and each level only decides what it uses. A duplicate copy under Data/Levels
+        /// is deliberately not written: two assets with different guids invite edits that silently do
+        /// nothing, and the Resources asset is the one the game loads.
+        /// </summary>
+        private static void SaveLevels(GameContentFactory.Content content, Dictionary<ScriptableObject, ScriptableObject> mapping, Result result)
         {
-            EnsureFolder($"{DataFolder}/Levels");
+            RemoveStaleLevelCopies();
 
-            // The name is forced so the persisted asset is addressable as "Kitchen/Level_01"
-            // through Resources.Load even when the file is renamed in the project window.
-            content.Level.name = "Level_01";
-            CreateAsset(content.Level, LevelAssetPath, mapping, result);
-
-            // A copy under Data/Levels makes the level easy to find next to the other configuration.
-            if (mapping.TryGetValue(content.Level, out ScriptableObject saved) && saved is LevelConfig levelAsset)
+            for (int number = 1; number <= GameContentFactory.LevelCount; number++)
             {
-                string copyPath = $"{DataFolder}/Levels/{levelAsset.name}.asset";
-                if (!string.Equals(copyPath, LevelAssetPath, StringComparison.OrdinalIgnoreCase))
+                LevelConfig level = GameContentFactory.CreateLevel(content, number);
+                string path = $"{ResourcesRoot}/Level_{number:00}.asset";
+                CreateAsset(level, path, mapping, result);
+
+                if (mapping.TryGetValue(level, out ScriptableObject saved) && saved is LevelConfig savedLevel)
                 {
-                    AssetDatabase.CopyAsset(LevelAssetPath, copyPath);
-                    result.CreatedPaths.Add(copyPath);
+                    result.Levels.Add(savedLevel);
                 }
+            }
+
+            // Saved last so it references the already saved cookers, items, recipes and orders.
+            LevelConfig sandbox = GameContentFactory.CreateSandboxLevel(content);
+            CreateAsset(sandbox, SandboxLevelPath, mapping, result);
+            if (mapping.TryGetValue(sandbox, out ScriptableObject savedSandbox) && savedSandbox is LevelConfig sandboxLevel)
+            {
+                result.Sandbox = sandboxLevel;
+            }
+        }
+
+        /// <summary>Deletes the old duplicated level assets that used to live under Data/Levels.</summary>
+        private static void RemoveStaleLevelCopies()
+        {
+            const string legacyFolder = DataFolder + "/Levels";
+            if (AssetDatabase.IsValidFolder(legacyFolder))
+            {
+                AssetDatabase.DeleteAsset(legacyFolder);
+                Debug.Log("[KitchenDataAssetGenerator] Removed the duplicated assets under Data/Levels.");
             }
         }
 

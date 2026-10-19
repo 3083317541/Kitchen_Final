@@ -70,6 +70,13 @@ namespace Kitchen.UI
         [SerializeField] private TMP_Text progressDetailText;
         [SerializeField] private Image progressFill;
 
+        [Header("Level clear")]
+        [SerializeField] private GameObject levelClearPanel;
+        [SerializeField] private TMP_Text levelClearTitleText;
+        [SerializeField] private TMP_Text levelClearRewardText;
+        [SerializeField] private Button levelClearNextButton;
+        [SerializeField] private TMP_Text levelClearNextButtonText;
+
         [Header("Notifications")]
         [SerializeField] private GameObject notificationPanel;
         [SerializeField] private TMP_Text notificationText;
@@ -91,6 +98,17 @@ namespace Kitchen.UI
 
         public GameRuntime Runtime => runtime;
 
+        /// <summary>Container that shows the end of level summary.</summary>
+        public GameObject LevelClearPanel => levelClearPanel;
+
+        public TMP_Text LevelClearTitleText => levelClearTitleText;
+
+        public TMP_Text LevelClearRewardText => levelClearRewardText;
+
+        public Button LevelClearNextButton => levelClearNextButton;
+
+        public TMP_Text LevelClearNextButtonText => levelClearNextButtonText;
+
         // ------------------------------------------------------------------ lifecycle
 
         /// <summary>Injects the runtime and subscribes to its events. Called by GameRuntime during Boot.</summary>
@@ -103,6 +121,14 @@ namespace Kitchen.UI
                 runtime.MessageRaised -= OnMessage;
                 runtime.MessageRaised += OnMessage;
             }
+
+            if (levelClearNextButton != null)
+            {
+                levelClearNextButton.onClick.RemoveListener(OnLevelClearNext);
+                levelClearNextButton.onClick.AddListener(OnLevelClearNext);
+            }
+
+            SetLevelClearVisible(false);
 
             RefreshAll();
         }
@@ -353,6 +379,68 @@ namespace Kitchen.UI
         }
 
         // ------------------------------------------------------------------ notifications
+
+        // ------------------------------------------------------------------ level clear
+
+        /// <summary>
+        /// Shows the end of level summary. The player advances with the button, so the reward is read
+        /// at the player\'s pace instead of flashing past.
+        /// </summary>
+        public void ShowLevelClear(LevelConfig cleared, string reward)
+        {
+            if (levelClearPanel == null)
+            {
+                return;
+            }
+
+            if (levelClearTitleText != null)
+            {
+                levelClearTitleText.text = cleared != null
+                    ? $"{cleared.LevelTitle} 完成！"
+                    : "本关完成！";
+            }
+
+            if (levelClearRewardText != null)
+            {
+                levelClearRewardText.text = string.IsNullOrEmpty(reward)
+                    ? "没有额外奖励。"
+                    : $"奖励：{reward}";
+            }
+
+            if (levelClearNextButtonText != null)
+            {
+                levelClearNextButtonText.text = cleared != null && cleared.HasNextLevel
+                    ? "进入下一关"
+                    : "返回开始界面";
+            }
+
+            SetLevelClearVisible(true);
+        }
+
+        /// <summary>Hides the end of level summary.</summary>
+        public void HideLevelClear()
+        {
+            SetLevelClearVisible(false);
+        }
+
+        private void SetLevelClearVisible(bool visible)
+        {
+            if (levelClearPanel != null)
+            {
+                levelClearPanel.SetActive(visible);
+            }
+        }
+
+        private void OnLevelClearNext()
+        {
+            SetLevelClearVisible(false);
+
+            Kitchen.Level.LevelManager levels = runtime != null ? runtime.Levels : null;
+            if (levels != null)
+            {
+                levels.GoToNextLevel();
+            }
+        }
 
         /// <summary>Displays a message in the notification panel.</summary>
         public void ShowNotification(string message, MessageKind kind)

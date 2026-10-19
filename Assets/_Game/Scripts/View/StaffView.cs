@@ -106,6 +106,38 @@ namespace Kitchen.View
             }
         }
 
+        /// <summary>
+        /// Re-resolves the shared materials from the asset library, repairing an instance whose
+        /// material reference came out null and would otherwise be drawn magenta.
+        /// </summary>
+        public void RefreshMaterials()
+        {
+            if (visualRoot == null)
+            {
+                return;
+            }
+
+            MeshRenderer[] renderers = visualRoot.GetComponentsInChildren<MeshRenderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                MeshRenderer renderer = renderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                if (renderer.sharedMaterial != null && renderer.sharedMaterial.shader != null &&
+                    renderer.sharedMaterial.shader.name != "Hidden/InternalErrorShader")
+                {
+                    continue;
+                }
+
+                renderer.sharedMaterial = bodyMaterial != null
+                    ? bodyMaterial
+                    : Whitebox.SolidMaterial(bodyColor, "StaffBody");
+            }
+        }
+
         /// <summary>Builds the visual hierarchy once.</summary>
         public void EnsureBuilt()
         {
@@ -160,6 +192,7 @@ namespace Kitchen.View
             }
 
             EnsureClickCollider();
+            RefreshMaterials();
         }
 
         private void BuildWhitebox()

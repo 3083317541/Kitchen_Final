@@ -134,7 +134,16 @@ namespace Kitchen.EditorTools
             runtimeObject.AddComponent<Kitchen.UI.UIManager>();
             runtimeObject.AddComponent<Kitchen.Level.LevelManager>();
 
-            LevelConfig level = AssetDatabase.LoadAssetAtPath<LevelConfig>(KitchenDataAssetGenerator.LevelAssetPath);
+            // The suite drives a sandbox level rather than a campaign level: campaign levels start with
+            // almost nothing on purpose, so testing against one would test the balancing instead of the
+            // systems. The saved asset is preferred because its definitions are the persisted ones, which
+            // are what carry the prefab and material links.
+            LevelConfig level = AssetDatabase.LoadAssetAtPath<LevelConfig>(KitchenDataAssetGenerator.SandboxLevelPath);
+            if (level == null)
+            {
+                Debug.LogWarning("[Acceptance] The sandbox level asset is missing; using in-memory content.");
+                level = GameContentFactory.CreateSandboxLevel(GameContentFactory.CreateRuntimeContent());
+            }
 
             SerializedObject so = new SerializedObject(gameRuntime);
             so.FindProperty("levelConfig").objectReferenceValue = level;
@@ -230,6 +239,8 @@ namespace Kitchen.EditorTools
             ScenarioUiLayout();
             ScenarioSceneContents();
             ScenarioArtPrefabs();
+            ScenarioMaterials();
+            ScenarioCampaign();
             ScenarioFinalConsistency();
         }
 
@@ -540,13 +551,18 @@ namespace Kitchen.EditorTools
 
             UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, true);
 
-            bool gridOk = cells == runtime.Level.Width * runtime.Level.Height && floorParts >= 1;
-            bool cookersOk = cookers == runtime.Level.StartingCookers.Count && cookerParts >= cookers * 5;
-            bool staffOk = staff == runtime.Level.StaffCount && staffParts >= staff * 6;
+            // The scene is authored from the first campaign level, while the harness drives the sandbox,
+            // so the expected counts come from the level asset the scene was built from.
+            LevelConfig sceneLevel = AssetDatabase.LoadAssetAtPath<LevelConfig>(KitchenDataAssetGenerator.LevelAssetPath)
+                ?? runtime.Level;
+
+            bool gridOk = cells == sceneLevel.Width * sceneLevel.Height && floorParts >= 1;
+            bool cookersOk = cookers == sceneLevel.StartingCookers.Count && cookerParts >= cookers * 5;
+            bool staffOk = staff == sceneLevel.StaffCount && staffParts >= staff * 6;
             bool sceneOk = lights >= 2 && cameras >= 1;
 
             Expect("scene_has_visible_kitchen", gridOk && cookersOk && staffOk && sceneOk,
-                $"grid cells = {cells} (expected {runtime.Level.Width * runtime.Level.Height}), floor parts = {floorParts}, " +
+                $"grid cells = {cells} (expected {sceneLevel.Width * sceneLevel.Height}), floor parts = {floorParts}, " +
                 $"cookers = {cookers} built from {cookerParts} parts, chefs = {staff} built from {staffParts} parts, " +
                 $"lights = {lights}, cameras = {cameras}.");
 
@@ -782,6 +798,263 @@ namespace Kitchen.EditorTools
                         KitchenSceneGenerator.ToAbsolutePath("Logs/prefab_compare.txt"),
                         $"INSTANCE\n{instanceText.Replace("|", "\n")}\n\nPREFAB\n{prefabText.Replace("|", "\n")}\n");
                 }
+            }
+        }
+
+        // ---- materials -----------------------------------------------------------------------
+
+        /// <summary>
+        /// Confirms every generated view has a real material and that the material library resolved.
+        ///
+        /// A null material renders with Unity's magenta error shader, so this is the check that would
+        /// have caught the prefabs serialising null materials.
+        /// </summary>
+        private static void ScenarioMaterials()
+        {
+            string[] folders =
+            {
+                KitchenPrefabGenerator.CookerFolder,
+                KitchenPrefabGenerator.StaffFolder,
+                KitchenPrefabGenerator.GridFolder,
+                KitchenPrefabGenerator.IngredientFolder
+            };
+
+            List<string> missing = new List<string>();
+            int checkedPrefabs = 0;
+            int checkedRenderers = 0;
+
+            string[] guids = AssetDatabase.FindAssets("t:Prefab", folders);
+            for (int i = 0; i < guids.Length; i++)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                if (prefab == null)
+                {
+                    continue;
+                }
+
+                checkedPrefabs++;
+                MeshRenderer[] renderers = prefab.GetComponentsInChildren<MeshRenderer>(true);
+
+                for (int r = 0; r < renderers.Length; r++)
+                {
+                    checkedRenderers++;
+
+                    if (renderers[r] == null)
+                    {
+                        continue;
+                    }
+
+                    Material material = renderers[r].sharedMaterial;
+                    if (material == null)
+                    {
+                        missing.Add($"{path}: {GetPath(renderers[r].transform)} has no material");
+                        continue;
+                    }
+
+                    if (material.shader != null && material.shader.name == "Hidden/InternalErrorShader")
+                    {
+                        missing.Add($"{path}: {GetPath(renderers[r].transform)} uses the error shader");
+                    }
+                }
+            }
+
+            Expect("prefab_renderers_have_materials", missing.Count == 0,
+                missing.Count == 0
+                    ? $"{checkedRenderers} renderer(s) across {checkedPrefabs} prefab(s) all have a material."
+                    : $"{missing.Count} renderer(s) have no usable material: " +
+                      string.Join("; ", missing.GetRange(0, Mathf.Min(5, missing.Count)).ToArray()));
+
+            // The library the runtime resolves materials from must exist and be populated.
+            WhiteboxMaterialLibrary library = AssetDatabase.LoadAssetAtPath<WhiteboxMaterialLibrary>(
+                KitchenMaterialGenerator.LibraryPath);
+
+            int usable = 0;
+            if (library != null)
+            {
+                for (int i = 0; i < library.Materials.Count; i++)
+                {
+                    Material material = library.Materials[i];
+                    if (material != null && material.shader != null &&
+                        material.shader.name != "Hidden/InternalErrorShader")
+                    {
+                        usable++;
+                    }
+                }
+            }
+
+            Expect("material_library_populated", library != null && usable >= 10,
+                library == null
+                    ? $"no material library at '{KitchenMaterialGenerator.LibraryPath}'"
+                    : $"library holds {library.Materials.Count} material(s), {usable} usable.");
+
+            // The views must resolve to those assets rather than the in-memory fallback.
+            int withAssetMaterial = 0;
+            for (int i = 0; i < runtime.Cookers.Cookers.Count; i++)
+            {
+                CookerRuntime cooker = runtime.Cookers.Cookers[i];
+                if (cooker.View == null)
+                {
+                    continue;
+                }
+
+                MeshRenderer[] renderers = cooker.View.GetComponentsInChildren<MeshRenderer>(true);
+                for (int r = 0; r < renderers.Length; r++)
+                {
+                    Material material = renderers[r].sharedMaterial;
+                    if (material != null && !string.IsNullOrEmpty(AssetDatabase.GetAssetPath(material)))
+                    {
+                        withAssetMaterial++;
+                        break;
+                    }
+                }
+            }
+
+            Expect("runtime_views_use_material_assets", withAssetMaterial == runtime.Cookers.Cookers.Count,
+                $"{withAssetMaterial} of {runtime.Cookers.Cookers.Count} cooker view(s) use an asset material.");
+        }
+
+        // ---- campaign ------------------------------------------------------------------------
+
+        /// <summary>
+        /// Confirms the campaign exists and behaves: three level assets that chain together, a start
+        /// screen registered first in the build settings, a level one that can only afford the two
+        /// cookers it teaches, and an order list that ends instead of wrapping.
+        /// </summary>
+        private static void ScenarioCampaign()
+        {
+            // 1. Every level asset exists and chains to the next, ending at zero.
+            List<LevelConfig> levels = new List<LevelConfig>();
+            List<string> missing = new List<string>();
+
+            for (int number = 1; number <= GameContentFactory.LevelCount; number++)
+            {
+                string path = $"{KitchenDataAssetGenerator.ResourcesRoot}/Level_{number:00}.asset";
+                LevelConfig level = AssetDatabase.LoadAssetAtPath<LevelConfig>(path);
+                if (level == null)
+                {
+                    missing.Add(path);
+                }
+                else
+                {
+                    levels.Add(level);
+                }
+            }
+
+            Expect("campaign_levels_exist", missing.Count == 0,
+                missing.Count == 0
+                    ? $"{levels.Count} level asset(s) present."
+                    : $"missing: {string.Join(", ", missing.ToArray())}");
+
+            bool chained = levels.Count == GameContentFactory.LevelCount;
+            string chain = string.Empty;
+            for (int i = 0; i < levels.Count && chained; i++)
+            {
+                bool lastLevel = i == levels.Count - 1;
+                int expectedNext = lastLevel ? 0 : levels[i].LevelNumber + 1;
+                if (levels[i].NextLevelNumber != expectedNext || levels[i].LevelNumber != i + 1)
+                {
+                    chained = false;
+                }
+
+                chain += $"{levels[i].LevelNumber}->{levels[i].NextLevelNumber} ";
+            }
+
+            Expect("campaign_levels_chain", chained,
+                $"chain = {chain.Trim()} (last level must point at 0).");
+
+            // 2. The start screen exists and is the scene a build launches into.
+            bool menuExists = File.Exists(KitchenSceneGenerator.MenuScenePath);
+            string firstScene = string.Empty;
+            EditorBuildSettingsScene[] buildScenes = EditorBuildSettings.scenes;
+            if (buildScenes.Length > 0)
+            {
+                firstScene = buildScenes[0].path;
+            }
+
+            Expect("start_screen_is_first_scene",
+                menuExists && firstScene == KitchenSceneGenerator.MenuScenePath,
+                menuExists
+                    ? $"first build scene = {firstScene}."
+                    : $"{KitchenSceneGenerator.MenuScenePath} does not exist.");
+
+            // 3. Level one's money buys exactly one chopping station and one assembly table.
+            LevelConfig first = levels.Count > 0 ? levels[0] : null;
+            if (first != null)
+            {
+                CookerDefinition chopping = first.FindCooker(GameContentFactory.Ids.ChoppingStation);
+                CookerDefinition assembly = first.FindCooker(GameContentFactory.Ids.AssemblyTable);
+                int exact = (chopping != null ? chopping.Price : 0) + (assembly != null ? assembly.Price : 0);
+
+                Expect("level_one_budget_is_exact", first.StartingMoney == exact,
+                    $"starting money = {first.StartingMoney}, chopping {chopping?.Price} + assembly {assembly?.Price} = {exact}.");
+
+                // The first level teaches salads, so it must not offer meat or bread at all.
+                bool noMeat = first.FindItem(GameContentFactory.Ids.RawMeat) == null
+                    && first.FindItem(GameContentFactory.Ids.Bread) == null;
+                bool hasSalad = first.FindItem(GameContentFactory.Ids.Salad) != null;
+                int cookerCount = first.Cookers.Count;
+
+                Expect("level_one_is_salad_only", noMeat && hasSalad && cookerCount == 2,
+                    $"meat/bread absent = {noMeat}, salad present = {hasSalad}, cookers = {cookerCount} (expected 2).");
+
+                // Nothing is pre-placed in level one: placing the cookers is the lesson.
+                Expect("level_one_starts_empty", first.StartingCookers.Count == 0 && first.StaffCount == 1,
+                    $"pre-placed cookers = {first.StartingCookers.Count}, staff = {first.StaffCount}.");
+            }
+
+            // 4. Later levels grow: the pan arrives in 2, the washer in 3.
+            if (levels.Count >= 3)
+            {
+                bool panInSecond = levels[1].FindCooker(GameContentFactory.Ids.FryingPan) != null;
+                bool washerInThird = levels[2].FindCooker(GameContentFactory.Ids.DishWasher) != null;
+                bool washerNotInSecond = levels[1].FindCooker(GameContentFactory.Ids.DishWasher) == null;
+                bool staffGrows = levels[0].StaffCount < levels[1].StaffCount &&
+                                  levels[1].StaffCount < levels[2].StaffCount;
+
+                Expect("levels_unlock_progressively",
+                    panInSecond && washerInThird && washerNotInSecond && staffGrows,
+                    $"pan in level 2 = {panInSecond}, washer in level 3 = {washerInThird}, " +
+                    $"washer absent from level 2 = {washerNotInSecond}, staff grows = {staffGrows} " +
+                    $"({levels[0].StaffCount} -> {levels[1].StaffCount} -> {levels[2].StaffCount}).");
+            }
+
+            // 5. The order list ends. Serving every remaining order must clear the level exactly once
+            //    and leave no order in flight, instead of wrapping around forever.
+            if (runtime != null && runtime.Orders != null)
+            {
+                ItemDefinition cleanPlate = runtime.CleanPlate;
+                int guard = 0;
+
+                while (!runtime.Orders.IsLevelCleared && guard++ < 12)
+                {
+                    OrderManager.OrderStatus active = runtime.Orders.Current;
+                    if (active == null || active.Dish == null || cleanPlate == null)
+                    {
+                        break;
+                    }
+
+                    ResetInventory();
+                    runtime.GrantItem(active.Dish, active.DishRequired);
+                    runtime.GrantItem(cleanPlate, active.PlatesRequired);
+
+                    if (!runtime.TrySubmitOrder())
+                    {
+                        break;
+                    }
+                }
+
+                bool cleared = runtime.Orders.IsLevelCleared && runtime.Orders.Current == null;
+                bool servedAll = runtime.Orders.CompletedOrders == runtime.Orders.OrderCount;
+
+                Expect("order_list_ends_and_clears_level", cleared && servedAll,
+                    $"level cleared = {cleared}, orders in level = {runtime.Orders.OrderCount}, " +
+                    $"completed = {runtime.Orders.CompletedOrders}, order still active = {runtime.Orders.Current != null}.");
+
+                // A cleared level must not accept another delivery.
+                bool refused = !runtime.TrySubmitOrder();
+                Expect("cleared_level_rejects_delivery", refused,
+                    $"submitting after the level cleared was refused = {refused}.");
             }
         }
 
@@ -1354,8 +1627,14 @@ namespace Kitchen.EditorTools
             Expect("delivery_success", served && paid && consumed && ticket,
                 $"served = {served}, money {moneyBefore} -> {runtime.Money} (reward {reward}), consumed = {consumed}, plate tickets = {runtime.PlateReturns.PendingCount}.");
 
-            Expect("order_completed_once", runtime.Orders.CompletedOrders == completedBefore + 1 && runtime.Orders.Current != null && runtime.Orders.Current.IsActive,
-                $"completed orders = {runtime.Orders.CompletedOrders}, next order issued = {(runtime.Orders.Current != null && runtime.Orders.Current.IsActive)}.");
+            // The sequence is finite now, so a delivery either issues the next order or, when it was the
+            // last one, clears the level. Both are correct; silently wrapping is not.
+            bool nextIssued = runtime.Orders.Current != null && runtime.Orders.Current.IsActive;
+            bool levelCleared = runtime.Orders.IsLevelCleared;
+            Expect("order_completed_once",
+                runtime.Orders.CompletedOrders == completedBefore + 1 && (nextIssued || levelCleared),
+                $"completed orders = {runtime.Orders.CompletedOrders}, next order issued = {nextIssued}, " +
+                $"level cleared = {levelCleared}, orders in level = {runtime.Orders.OrderCount}.");
 
             // A settled order cannot be paid twice.
             int moneyAfterServe = runtime.Money;

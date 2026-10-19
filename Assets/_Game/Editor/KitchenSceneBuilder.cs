@@ -22,6 +22,9 @@ namespace Kitchen.EditorTools
     /// </summary>
     public static class KitchenSceneBuilder
     {
+        /// <summary>Asset path of the generated start screen.</summary>
+        public const string MenuScenePath = "Assets/_Game/Scenes/MainMenu.unity";
+
         public const string ScenePath = "Assets/_Game/Scenes/Kitchen.unity";
 
         /// <summary>
@@ -422,7 +425,7 @@ namespace Kitchen.EditorTools
             GameRuntime runtime = go.AddComponent<GameRuntime>();
             go.AddComponent<Kitchen.Input.InputManager>();
             go.AddComponent<UIManager>();
-            go.AddComponent<Kitchen.Level.LevelManager>();
+            Kitchen.Level.LevelManager levelManager = go.AddComponent<Kitchen.Level.LevelManager>();
 
             SerializedObject so = new SerializedObject(runtime);
             so.FindProperty("levelConfig").objectReferenceValue = level;
@@ -433,18 +436,54 @@ namespace Kitchen.EditorTools
             so.FindProperty("plateReturnMinSeconds").floatValue = GameContentFactory.DefaultPlateReturnMinSeconds;
             so.FindProperty("plateReturnMaxSeconds").floatValue = GameContentFactory.DefaultPlateReturnMaxSeconds;
             so.FindProperty("worldCamera").objectReferenceValue = camera;
+            so.FindProperty("levelManager").objectReferenceValue = levelManager;
             so.ApplyModifiedPropertiesWithoutUndo();
 
-            Kitchen.Level.LevelManager levelManager = go.GetComponent<Kitchen.Level.LevelManager>();
-            SerializedObject levelSo = new SerializedObject(levelManager);
+            // Every campaign level is registered so the level manager can resolve any of them even
+            // when the Resources asset is missing.
+            Kitchen.Level.LevelManager resolvedLevelManager = go.GetComponent<Kitchen.Level.LevelManager>();
+            SerializedObject levelSo = new SerializedObject(resolvedLevelManager);
             levelSo.FindProperty("activeLevel").objectReferenceValue = level;
+            levelSo.FindProperty("useCampaignProgress").boolValue = true;
+
+            List<LevelConfig> campaignLevels = ResolveCampaignLevels(level);
             SerializedProperty levels = levelSo.FindProperty("availableLevels");
-            levels.arraySize = 1;
-            levels.GetArrayElementAtIndex(0).objectReferenceValue = level;
+            levels.arraySize = campaignLevels.Count;
+            for (int i = 0; i < campaignLevels.Count; i++)
+            {
+                levels.GetArrayElementAtIndex(i).objectReferenceValue = campaignLevels[i];
+            }
+
             levelSo.FindProperty("runtime").objectReferenceValue = runtime;
             levelSo.ApplyModifiedPropertiesWithoutUndo();
 
             return runtime;
+        }
+
+        /// <summary>
+        /// Loads every generated campaign level asset. Falls back to the level passed in when the
+        /// assets are missing, so the scene is always playable.
+        /// </summary>
+        private static List<LevelConfig> ResolveCampaignLevels(LevelConfig fallback)
+        {
+            List<LevelConfig> levels = new List<LevelConfig>();
+
+            for (int number = 1; number <= GameContentFactory.LevelCount; number++)
+            {
+                string path = $"{KitchenDataAssetGenerator.ResourcesRoot}/Level_{number:00}.asset";
+                LevelConfig level = AssetDatabase.LoadAssetAtPath<LevelConfig>(path);
+                if (level != null)
+                {
+                    levels.Add(level);
+                }
+            }
+
+            if (levels.Count == 0 && fallback != null)
+            {
+                levels.Add(fallback);
+            }
+
+            return levels;
         }
 
         private static GameObject CreateSystems(IList<CookerWorkStrategy> strategies)

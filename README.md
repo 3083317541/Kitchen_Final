@@ -12,15 +12,33 @@ on their cell. All art is placeholder geometry with explicit replacement seams.
 ## 快速开始 / Quick start
 
 1. 用 **Unity 2022.3.62f3c1** 打开本工程。
-2. 打开场景 `Assets/_Game/Scenes/Kitchen.unity`。
-3. 按 **Play**。
+2. 打开场景 `Assets/_Game/Scenes/MainMenu.unity`（开始界面）。
+3. 按 **Play**，点击 **开始游戏** 进入第一关。
+
+也可以直接打开 `Assets/_Game/Scenes/Kitchen.unity` 按 Play，此时会从当前关卡（默认第一关）开始。
 
 首次打开若 HUD 没有文字，执行菜单 **`Kitchen/6. Import TMP Essential Resources`**，再执行
 **`Kitchen/3. Generate Everything`**。生成器会自动从系统字体创建中文 HUD 字体。
 
-> Open the project with Unity 2022.3.62f3c1, open `Assets/_Game/Scenes/Kitchen.unity`, press Play.
+> Open `Assets/_Game/Scenes/MainMenu.unity` and press Play, then click 开始游戏.
+> Opening `Kitchen.unity` directly also works and starts at the current campaign level.
 > If the HUD has no text on first open, run `Kitchen/6. Import TMP Essential Resources` then
 > `Kitchen/3. Generate Everything`.
+
+---
+
+## 关卡流程 / Campaign
+
+| 关卡 | 菜品 | 可用厨具 | 员工 | 初始金钱 | 通关奖励 |
+|---|---|---|---|---|---|
+| 第一关 · 沙拉 | 沙拉 | 切菜台、组装台 | 1 | 170（正好买一台切菜台 + 一台组装台） | 员工 +1、煎锅 |
+| 第二关 · 沙拉与汉堡 | 沙拉、生菜番茄肉面包 | 切菜台、煎锅、组装台 | 2 | 250 | 员工 +1、洗碗台 |
+| 第三关 · 盘子循环 | 沙拉、生菜番茄肉面包 | 全部四台 | 3 | 300 | —（最后一关） |
+
+- 每关有**固定订单清单**，全部完成即通关，显示奖励面板，点"进入下一关"继续。
+- **订单失败会重发同一张**，所以失误不会让关卡变得无法通过。
+- 关卡的初始金钱、库存、员工数、厨具目录、订单清单都是 `Assets/_Game/Resources/Kitchen/Level_0N.asset` 的数据，可以直接在 Inspector 改。
+- 每关的通关奖励记录在 `LevelConfig` 的 `Clear Reward` 里，用于奖励面板显示；下一关的实际内容由它自己的配置决定，避免两处重复计算。
 
 ---
 

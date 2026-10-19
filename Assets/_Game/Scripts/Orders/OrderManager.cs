@@ -44,12 +44,16 @@ namespace Kitchen.Orders
 
         private OrderStatus current;
         private int sequenceCursor;
+        private bool levelCleared;
         private int completedOrders;
         private int failedOrders;
         private int totalRewardEarned;
 
         public event Action<OrderStatus> OrderIssued;
         public event Action<OrderStatus> OrderSettled;
+
+        /// <summary>Raised once, when the last order of the level has been completed.</summary>
+        public event Action LevelCleared;
 
         public IReadOnlyList<OrderDefinition> Sequence => sequence;
 
@@ -96,15 +100,47 @@ namespace Kitchen.Orders
             completedOrders = 0;
             failedOrders = 0;
             totalRewardEarned = 0;
+            levelCleared = false;
             IssueCurrent();
         }
 
-        /// <summary>Issues the next order in the sequence, wrapping around at the end.</summary>
+        /// <summary>
+        /// Advances to the next order, or ends the level when the sequence is exhausted.
+        ///
+        /// The sequence does not wrap: a level is a finite list of orders, which is what gives the
+        /// campaign a point at which to clear the level and hand out its reward.
+        /// </summary>
         public void IssueNextOrder()
         {
             sequenceCursor++;
+
+            if (sequenceCursor >= sequence.Count)
+            {
+                // Nothing left to issue: the level is complete once the last order settled.
+                current = null;
+                if (!levelCleared)
+                {
+                    levelCleared = true;
+                    LevelCleared?.Invoke();
+                }
+
+                return;
+            }
+
             IssueCurrent();
         }
+
+        /// <summary>True once every order in the sequence has been completed.</summary>
+        public bool IsLevelCleared => levelCleared;
+
+        /// <summary>Orders still to be completed, counting the one in flight.</summary>
+        public int OrdersRemaining => Mathf.Max(0, sequence.Count - completedOrders);
+
+        /// <summary>Total orders in this level.</summary>
+        public int OrderCount => sequence.Count;
+
+        /// <summary>Position of the current order in the sequence, 1-based, or 0 when none is active.</summary>
+        public int CurrentOrderNumber => current != null ? sequenceCursor + 1 : 0;
 
         private void IssueCurrent()
         {
@@ -286,16 +322,21 @@ namespace Kitchen.Orders
             settled.State = OrderState.Failed;
             failedOrders++;
 
-            Runtime.Notify($"订单失败：{settled.Definition.DisplayName} 已超时。", MessageKind.Error);
+            Runtime.Notify($"订单失败：{settled.Definition.DisplayName} 已超时，重新再来一次。", MessageKind.Error);
 
             OrderSettled?.Invoke(settled);
-            IssueNextOrder();
+
+            // A failed order is retried instead of skipped, so a mistake cannot make the level
+            // impossible to finish. The sequence cursor stays where it is.
+            IssueCurrent();
         }
 
         public override void Shutdown()
         {
             current = null;
             sequence.Clear();
+            sequenceCursor = 0;
+            levelCleared = false;
         }
     }
 }

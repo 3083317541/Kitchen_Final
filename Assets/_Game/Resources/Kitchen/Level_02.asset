@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d2a2df1b10c9244cb43b0d217070d8e, type: 3}
+  m_Name: Level_02
+  m_EditorClassIdentifier: 
+  width: 5
+  height: 5
+  cellSize: 2
+  mapCenter: {x: 0, y: 0, z: 0}
+  groundHeight: 0
+  startingMoney: 250
+  startingInventory:
+  - item: {fileID: 11400000, guid: 4e7ec019397b4324487d4a99945ca467, type: 2}
+    count: 4
+  - item: {fileID: 11400000, guid: 826dc63fca73d7d409205ecc3d283d61, type: 2}
+    count: 4
+  - item: {fileID: 11400000, guid: 29330fcd05bbdeb499a56adaac5e8a03, type: 2}
+    count: 4
+  - item: {fileID: 11400000, guid: 14001a5784665d04b90d3c34c9dcb595, type: 2}
+    count: 4
+  - item: {fileID: 11400000, guid: ca03e3743a9d9db4486c9eca220c6b6b, type: 2}
+    count: 3
+  startingCookers:
+  - definition: {fileID: 11400000, guid: 0cf66ad38672a7a47a1b7f9b6afa0c8d, type: 2}
+    gridPosition: {x: 4, y: 4}
+  staffCount: 2
+  staffSpawnOffsets:
+  - {x: -1, y: -1}
+  - {x: 1, y: -1}
+  orderSequence:
+  - {fileID: 11400000, guid: 4765262b2e0788941ae8a8eff725cb72, type: 2}
+  - {fileID: 11400000, guid: 0740f9215f52f9b488168bb36fefc6d7, type: 2}
+  levelNumber: 2
+  levelTitle: "\u7B2C\u4E8C\u5173 \xB7 \u6C99\u62C9\u4E0E\u6C49\u5821"
+  nextLevelNumber: 3
+  tutorialSteps:
+  - "\u714E\u9505\u662F\u6709\u706B\u7684\u53A8\u5177\uFF1A\u53A8\u5E08\u5FC5\u987B\u4E00\u76F4\u7AD9\u5728\u4E0A\u9762\uFF0C\u8D70\u5F00\u5C31\u4F1A\u6682\u505C\u52A0\u5DE5\u3002"
+  - "\u751F\u8089\u8981\u5148\u5728\u5207\u83DC\u53F0\u5207\u6210\u751F\u8089\u7247\uFF0C\u518D\u653E\u8FDB\u714E\u9505\u714E\u6210\u719F\u8089\u7247\u3002"
+  - "\u6C49\u5821\u9700\u8981 \u83DC\u7247 + \u756A\u8304\u7247 + \u719F\u8089\u7247
+    + \u9762\u5305\u7247\uFF0C\u56DB\u6837\u7F3A\u4E00\u4E0D\u53EF\u3002"
+  rewardMoney: 0
+  rewardStaffCount: 1
+  rewardCookerIds:
+  - dish_washer
+  staffPrefab: {fileID: 8048120873794243087, guid: d36b2d2fc7aace746b6330ce974d26b1, type: 3}
+  floorPrefab: {fileID: 2839335487457518840, guid: f82a46a0a69c00b409db54c8c180817a, type: 3}
+  items:
+  - {fileID: 11400000, guid: 4e7ec019397b4324487d4a99945ca467, type: 2}
+  - {fileID: 11400000, guid: 826dc63fca73d7d409205ecc3d283d61, type: 2}
+  - {fileID: 11400000, guid: 29330fcd05bbdeb499a56adaac5e8a03, type: 2}
+  - {fileID: 11400000, guid: 14001a5784665d04b90d3c34c9dcb595, type: 2}
+  - {fileID: 11400000, guid: ca03e3743a9d9db4486c9eca220c6b6b, type: 2}
+  - {fileID: 11400000, guid: 1da1e5a2de4ec0c4292b3c30d3ad3166, type: 2}
+  - {fileID: 11400000, guid: 72f04368dec0daf4c92a2df9582555e4, type: 2}
+  - {fileID: 11400000, guid: c1e34f1b8f115ea42978963e764f041d, type: 2}
+  - {fileID: 11400000, guid: 4663981386d00de44b39e001cfbd9695, type: 2}
+  - {fileID: 11400000, guid: 0e971e7bb2615ef4b99fa431e0d35976, type: 2}
+  - {fileID: 11400000, guid: b694da2f39b43154d9664920f9fac2c6, type: 2}
+  - {fileID: 11400000, guid: 126d6cc6bf3e970448f24a8cfe4eac05, type: 2}
+  - {fileID: 11400000, guid: eb861fddfaec04b439b3e27ad57ebf04, type: 2}
+  - {fileID: 11400000, guid: d4b8b712ae7e60b40ab799ae05d937f7, type: 2}
+  cookers:
+  - {fileID: 11400000, guid: 0113cca46735bc3458d90ceb5de6bbba, type: 2}
+  - {fileID: 11400000, guid: 0cf66ad38672a7a47a1b7f9b6afa0c8d, type: 2}
+  - {fileID: 11400000, guid: f6f7bd403d8ce8c4c8b4222b235c614b, type: 2}
+  recipes:
+  - {fileID: 11400000, guid: d1b0d08d23bdd4b4cafac39898359060, type: 2}
+  - {fileID: 11400000, guid: a31c8ad52018b2f4682d8f1f69afa02d, type: 2}
+  - {fileID: 11400000, guid: 635ce14fc1d09c045ac4669366c9cf14, type: 2}
+  - {fileID: 11400000, guid: f48c868bb00fe4e41995ccbf5174a222, type: 2}
+  - {fileID: 11400000, guid: ae83faf88a587f14e8fd75b24a1a4d00, type: 2}
+  - {fileID: 11400000, guid: e80716585cf7a4346a9c9fc147185b77, type: 2}
+  - {fileID: 11400000, guid: ac528e7b9dcd7ed4bbaedb98e38a3af5, type: 2}
+  - {fileID: 11400000, guid: ad698a0294b145c46a0c03cada423e94, type: 2}
+  - {fileID: 11400000, guid: 332e0d5ee32d6314687c1c71c12f5bef, type: 2}

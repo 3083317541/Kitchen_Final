@@ -200,6 +200,8 @@ namespace Kitchen.EditorTools
             Renderer floorRenderer = floor.GetComponent<Renderer>();
             if (floorRenderer != null)
             {
+                // Resolves to the authored material asset, so the saved prefab keeps a valid material
+                // instead of serialising null and rendering as magenta.
                 floorRenderer.sharedMaterial = Whitebox.SolidMaterial(Whitebox.FloorColor, "Floor");
                 floorRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
                 floorRenderer.receiveShadows = true;
@@ -347,7 +349,14 @@ namespace Kitchen.EditorTools
 
         // ------------------------------------------------------------------ helpers
 
-        /// <summary>Saves a temporary object as a prefab asset and cleans up the temporary object.</summary>
+        /// <summary>
+        /// Saves a temporary object as a prefab asset and cleans up the temporary object.
+        ///
+        /// Materials are carried over explicitly: a material created in memory serialises as null in a
+        /// prefab, which is what made every cooker draw magenta. Each material is copied from the
+        /// source hierarchy, and any material that is not already an asset is embedded into the prefab
+        /// as a sub asset so the reference stays valid.
+        /// </summary>
         public static GameObject SavePrefab(GameObject source, string path)
         {
             if (source == null)
@@ -362,15 +371,135 @@ namespace Kitchen.EditorTools
                 AssetDatabase.DeleteAsset(path);
             }
 
+            // The intended materials are captured before saving, because SaveAsPrefabAsset can drop
+            // a reference to a material that does not exist as an asset yet. Keying by hierarchy path
+            // makes the pairing exact regardless of ordering.
+            Dictionary<string, Material> intended = CollectMaterialMap(source);
+
             GameObject saved = PrefabUtility.SaveAsPrefabAsset(source, path);
             Object.DestroyImmediate(source);
 
             if (saved == null)
             {
                 Debug.LogError($"[KitchenPrefabGenerator] Failed to save '{path}'.");
+                return null;
             }
 
+            ApplyMaterials(saved, intended, path);
+            AssetDatabase.SaveAssets();
+
+            WarnAboutMissingMaterials(saved, path);
             return saved;
+        }
+
+        /// <summary>Maps each renderer's hierarchy path to the material it should have.</summary>
+        private static Dictionary<string, Material> CollectMaterialMap(GameObject root)
+        {
+            Dictionary<string, Material> map = new Dictionary<string, Material>();
+            MeshRenderer[] renderers = root.GetComponentsInChildren<MeshRenderer>(true);
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                MeshRenderer renderer = renderers[i];
+                if (renderer == null || renderer.sharedMaterial == null)
+                {
+                    continue;
+                }
+
+                map[RelativePath(root.transform, renderer.transform)] = renderer.sharedMaterial;
+            }
+
+            return map;
+        }
+
+        /// <summary>
+        /// Re-applies the intended materials to a saved prefab. Materials that are not already assets
+        /// are embedded into the prefab as sub assets, so the reference serialises instead of becoming
+        /// null and the part never falls back to Unity's magenta error shader.
+        /// </summary>
+        private static void ApplyMaterials(GameObject saved, Dictionary<string, Material> intended, string path)
+        {
+            if (saved == null || intended.Count == 0)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<string, Material> pair in intended)
+            {
+                Material material = pair.Value;
+                if (material != null && string.IsNullOrEmpty(AssetDatabase.GetAssetPath(material)))
+                {
+                    AssetDatabase.AddObjectToAsset(material, saved);
+                }
+            }
+
+            MeshRenderer[] renderers = saved.GetComponentsInChildren<MeshRenderer>(true);
+            int assigned = 0;
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                MeshRenderer renderer = renderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                if (intended.TryGetValue(RelativePath(saved.transform, renderer.transform), out Material material) &&
+                    material != null)
+                {
+                    renderer.sharedMaterial = material;
+                    assigned++;
+                }
+            }
+
+            if (assigned > 0)
+            {
+                EditorUtility.SetDirty(saved);
+            }
+        }
+
+        /// <summary>Path of a transform relative to a root, with the root itself as ".".</summary>
+        private static string RelativePath(Transform root, Transform target)
+        {
+            if (target == root)
+            {
+                return ".";
+            }
+
+            string path = target.name;
+            Transform current = target.parent;
+            while (current != null && current != root)
+            {
+                path = current.name + "/" + path;
+                current = current.parent;
+            }
+
+            return path;
+        }
+
+        /// <summary>
+        /// Reports renderers in a saved prefab that ended up without a material. A null material draws
+        /// with Unity's magenta error shader, so this turns a silent visual bug into a log line.
+        /// </summary>
+        private static void WarnAboutMissingMaterials(GameObject prefab, string path)
+        {
+            MeshRenderer[] renderers = prefab.GetComponentsInChildren<MeshRenderer>(true);
+            int missing = 0;
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null || renderers[i].sharedMaterial == null)
+                {
+                    missing++;
+                }
+            }
+
+            if (missing > 0)
+            {
+                Debug.LogError(
+                    $"[KitchenPrefabGenerator] '{path}' has {missing} renderer(s) with no material; " +
+                    "they will draw as magenta. Check that the material library was generated first.");
+            }
         }
 
         private static void EnsureFolder(string folder)

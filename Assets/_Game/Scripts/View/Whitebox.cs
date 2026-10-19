@@ -36,27 +36,75 @@ namespace Kitchen.View
         public static readonly Color StaffSelectedColor = new Color(0.25f, 0.98f, 0.60f, 0.55f);
         public static readonly Color InactiveAccentColor = new Color(0.42f, 0.42f, 0.46f);
         public static readonly Color MetalColor = new Color(0.58f, 0.60f, 0.64f);
+        public static readonly Color DetailBoardColor = new Color(0.62f, 0.46f, 0.28f);
+        public static readonly Color DetailGlassColor = new Color(0.55f, 0.78f, 0.85f);
         public static readonly Color DarkMetalColor = new Color(0.22f, 0.23f, 0.26f);
 
         // ------------------------------------------------------------------ material cache
 
-        private static readonly Dictionary<int, Material> MaterialCache = new Dictionary<int, Material>();
+        private static readonly Dictionary<int, Material> SolidCache = new Dictionary<int, Material>();
+        private static readonly Dictionary<int, Material> OverlayCache = new Dictionary<int, Material>();
+
+        private static WhiteboxMaterialLibrary library;
+
+        /// <summary>
+        /// Supplies the asset backed materials. Once registered, materials are resolved by name from
+        /// this library and every prefab keeps a reference to a real asset instead of a transient
+        /// in-memory material.
+        /// </summary>
+        public static void RegisterLibrary(WhiteboxMaterialLibrary materialLibrary)
+        {
+            library = materialLibrary;
+        }
+
+        /// <summary>The material library in use, or null when running without generated assets.</summary>
+        public static WhiteboxMaterialLibrary Library => library;
+
+        /// <summary>
+        /// Stable asset name for a colour. The generator writes materials under exactly these names,
+        /// so the same call resolves to the same asset at generation time and at runtime.
+        /// </summary>
+        public static string MaterialName(int prefix, Color color)
+        {
+            return $"M_Kitchen_{prefix}_{ColorUtility.ToHtmlStringRGB(color)}";
+        }
+
+        private static Material FromLibrary(int prefix, Color color, string label)
+        {
+            if (library == null)
+            {
+                return null;
+            }
+
+            Material material = library.Find(MaterialName(prefix, color));
+            if (material != null && material.shader != null && material.shader.name != "Hidden/InternalErrorShader")
+            {
+                return material;
+            }
+
+            return null;
+        }
 
         /// <summary>
         /// A lit, opaque material. Used for everything with volume so the scene reads as 3D.
         /// </summary>
         public static Material SolidMaterial(Color color, string label = "Solid")
         {
+            Material fromAssets = FromLibrary(0, color, label);
+            if (fromAssets != null)
+            {
+                return fromAssets;
+            }
+
             int key = color.GetHashCode();
-            if (MaterialCache.TryGetValue(key, out Material cached) && cached != null)
+            if (SolidCache.TryGetValue(key, out Material cached) && cached != null)
             {
                 return cached;
             }
 
             Material material = new Material(FindShader("Standard", "Diffuse", "Unlit/Color"))
             {
-                name = $"M_Whitebox_{label}_{ColorUtility.ToHtmlStringRGB(color)}",
-                hideFlags = HideFlags.DontSave
+                name = MaterialName(0, color)
             };
 
             SetColor(material, color);
@@ -71,7 +119,7 @@ namespace Kitchen.View
                 material.SetFloat("_Metallic", 0.0f);
             }
 
-            MaterialCache[key] = material;
+            SolidCache[key] = material;
             return material;
         }
 
@@ -82,16 +130,22 @@ namespace Kitchen.View
         public static Material OverlayMaterial(Color color, string label = "Overlay")
         {
             Color keyed = new Color(color.r, color.g, color.b, Mathf.Round(color.a * 100f) / 100f);
+
+            Material fromAssets = FromLibrary(1, keyed, label);
+            if (fromAssets != null)
+            {
+                return fromAssets;
+            }
+
             int key = keyed.GetHashCode() ^ 0x5F3A;
-            if (MaterialCache.TryGetValue(key, out Material cached) && cached != null)
+            if (OverlayCache.TryGetValue(key, out Material cached) && cached != null)
             {
                 return cached;
             }
 
             Material material = new Material(FindShader("Sprites/Default", "Unlit/Transparent", "Unlit/Color"))
             {
-                name = $"M_WhiteboxOverlay_{label}_{ColorUtility.ToHtmlStringRGBA(keyed)}",
-                hideFlags = HideFlags.DontSave
+                name = MaterialName(1, keyed)
             };
 
             SetColor(material, keyed);
@@ -104,7 +158,7 @@ namespace Kitchen.View
             // Ground decals must never occlude the shaded geometry they sit next to.
             material.renderQueue = (int)RenderQueue.Transparent;
 
-            MaterialCache[key] = material;
+            OverlayCache[key] = material;
             return material;
         }
 
@@ -318,7 +372,8 @@ namespace Kitchen.View
             return root;
         }
 
-        private static Color ToppingColor(ItemDefinition item)
+        /// <summary>The derived colour of a dish topping, exposed so a material asset can exist for it.</summary>
+        public static Color ToppingColor(ItemDefinition item)
         {
             Color baseColor = item.ViewColor;
             return new Color(

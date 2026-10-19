@@ -4,6 +4,7 @@ using System.IO;
 using Kitchen.Cookers;
 using Kitchen.Data;
 using Kitchen.Runtime;
+using Kitchen.View;
 using Kitchen.Work;
 using TMPro;
 using UnityEditor;
@@ -39,6 +40,9 @@ namespace Kitchen.EditorTools
             EditorApplication.delayCall += OnEditorReady;
         }
 
+        /// <summary>Guards the play mode warning so it is logged once per attempt, not every frame.</summary>
+        private static bool warnedAboutPlayMode;
+
         private static void OnEditorReady()
         {
             if (EditorApplication.isCompiling || EditorApplication.isUpdating)
@@ -46,6 +50,25 @@ namespace Kitchen.EditorTools
                 EditorApplication.delayCall += OnEditorReady;
                 return;
             }
+
+            // Generating while the editor is in play mode is not safe: creating a scene during play
+            // throws, and saving assets mid-play leaves the running game pointing at destroyed objects.
+            // The request is deliberately left in place so it runs once play mode has stopped.
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                if (!warnedAboutPlayMode)
+                {
+                    warnedAboutPlayMode = true;
+                    Debug.LogWarning(
+                        "[Kitchen] A generation request is waiting, but the editor is in play mode. " +
+                        "Stop play mode and it will run automatically.");
+                }
+
+                EditorApplication.delayCall += OnEditorReady;
+                return;
+            }
+
+            warnedAboutPlayMode = false;
 
             if (File.Exists(VerifyRequestFile))
             {
@@ -199,6 +222,9 @@ namespace Kitchen.EditorTools
             KitchenScreenshotCapture.Capture(KitchenScreenshotCapture.DefaultOutputPath, 3f);
         }
 
+        /// <summary>Asset path of the generated start screen.</summary>
+        public static string MenuScenePath => KitchenSceneBuilder.MenuScenePath;
+
         private static void ClearRequestFiles()
         {
             if (File.Exists(GenerateRequestFile))
@@ -238,16 +264,25 @@ namespace Kitchen.EditorTools
                 KitchenDataAssetGenerator.Result data = KitchenDataAssetGenerator.Generate();
                 AssetDatabase.SaveAssets();
 
+                // Materials are authored first and registered with Whitebox, so the prefabs built
+                // below serialise references to real material assets instead of nulls.
+                WhiteboxMaterialLibrary materials = KitchenMaterialGenerator.Generate();
+                Whitebox.RegisterLibrary(materials);
+                AssetDatabase.SaveAssets();
+
+
                 // Prefabs are generated before the scene so the scene preview can instantiate them and
                 // stay connected to them. Editing a prefab afterwards updates the Scene view and the
                 // running game, without regenerating anything.
                 LevelConfig prefabLevel = AssetDatabase.LoadAssetAtPath<LevelConfig>(
                     KitchenDataAssetGenerator.LevelAssetPath);
                 KitchenPrefabGenerator.Result prefabs = KitchenPrefabGenerator.Generate(prefabLevel);
-                if (prefabLevel != null && prefabs != null)
+
+                // Every level needs the art links, not just the one the scene was authored from:
+                // otherwise level 2 and 3 would silently fall back to the primitive chef and floor.
+                if (prefabs != null)
                 {
-                    prefabLevel.SetArtPrefabs(prefabs.StaffPrefab, prefabs.FloorPrefab);
-                    EditorUtility.SetDirty(prefabLevel);
+                    AssignArtPrefabsToAllLevels(prefabs.StaffPrefab, prefabs.FloorPrefab);
                 }
 
                 AssetDatabase.SaveAssets();
@@ -330,6 +365,12 @@ namespace Kitchen.EditorTools
                     Debug.LogError("[Kitchen] The generated scene has no GameRuntime.");
                 }
 
+                // Built last, because creating the start screen scene replaces the open scene and
+                // would invalidate the scene references used just above. The kitchen scene is reopened
+                // afterwards so the editor is left on the game rather than on the menu.
+                BuildMenuScene(font);
+                EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+
                 return level;
             }
             finally
@@ -373,6 +414,31 @@ namespace Kitchen.EditorTools
             }
 
             Debug.LogError($"[Kitchen] No free layer slot for '{layerName}'. Picking will not work correctly.");
+        }
+
+        /// <summary>
+        /// Writes the generated chef and floor prefabs onto every level asset, including the sandbox,
+        /// so no level can end up without the art links.
+        /// </summary>
+        private static void AssignArtPrefabsToAllLevels(GameObject staffPrefab, GameObject floorPrefab)
+        {
+            string[] guids = AssetDatabase.FindAssets(
+                "t:LevelConfig", new[] { KitchenDataAssetGenerator.ResourcesRoot });
+
+            for (int i = 0; i < guids.Length; i++)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                LevelConfig level = AssetDatabase.LoadAssetAtPath<LevelConfig>(path);
+                if (level == null)
+                {
+                    continue;
+                }
+
+                level.SetArtPrefabs(staffPrefab, floorPrefab);
+                EditorUtility.SetDirty(level);
+            }
+
+            AssetDatabase.SaveAssets();
         }
 
         private static void EnsureFolders()
@@ -426,20 +492,57 @@ namespace Kitchen.EditorTools
             return Path.Combine(projectRoot, projectRelative);
         }
 
+        /// <summary>
+        /// Puts the start screen first and the kitchen second. The order matters: index 0 is what a
+        /// build launches into, and the game must open on the menu rather than in the kitchen.
+        /// </summary>
         private static void RegisterSceneInBuildSettings()
         {
+            string menuPath = MenuScenePath;
             List<EditorBuildSettingsScene> scenes = new List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
 
-            for (int i = 0; i < scenes.Count; i++)
+            // Drop both entries, then re-insert them in the right order.
+            for (int i = scenes.Count - 1; i >= 0; i--)
             {
-                if (scenes[i].path == ScenePath)
+                if (scenes[i].path == ScenePath || scenes[i].path == menuPath)
                 {
-                    return;
+                    scenes.RemoveAt(i);
                 }
             }
 
             scenes.Insert(0, new EditorBuildSettingsScene(ScenePath, true));
+            if (File.Exists(menuPath))
+            {
+                scenes.Insert(0, new EditorBuildSettingsScene(menuPath, true));
+            }
+
             EditorBuildSettings.scenes = scenes.ToArray();
+        }
+
+        /// <summary>
+        /// Builds and saves the start screen scene. Kept separate from the kitchen build so a failure
+        /// here cannot leave a half built kitchen, and so it can be regenerated on its own.
+        /// </summary>
+        private static void BuildMenuScene(TMP_FontAsset font)
+        {
+            try
+            {
+                Scene menuScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                KitchenMenuBuilder.Build(font);
+
+                EditorSceneManager.MarkSceneDirty(menuScene);
+                if (!EditorSceneManager.SaveScene(menuScene, MenuScenePath))
+                {
+                    Debug.LogError($"[Kitchen] Failed to save the start screen at '{MenuScenePath}'.");
+                    return;
+                }
+
+                Debug.Log($"[Kitchen] Start screen generated at '{MenuScenePath}'.");
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogError($"[Kitchen] The start screen could not be generated: {exception.Message}");
+            }
         }
 
         // ------------------------------------------------------------------ font

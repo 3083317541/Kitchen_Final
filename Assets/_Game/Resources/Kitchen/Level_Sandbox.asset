@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7d2a2df1b10c9244cb43b0d217070d8e, type: 3}
-  m_Name: Level_01
+  m_Name: Level_Sandbox
   m_EditorClassIdentifier: 
   width: 5
   height: 5
@@ -33,6 +33,8 @@ MonoBehaviour:
     count: 2
   - item: {fileID: 11400000, guid: ca03e3743a9d9db4486c9eca220c6b6b, type: 2}
     count: 3
+  - item: {fileID: 11400000, guid: c1e34f1b8f115ea42978963e764f041d, type: 2}
+    count: 2
   startingCookers:
   - definition: {fileID: 11400000, guid: 0113cca46735bc3458d90ceb5de6bbba, type: 2}
     gridPosition: {x: 0, y: 4}
@@ -49,24 +51,32 @@ MonoBehaviour:
   - {x: 1, y: -1}
   orderSequence:
   - {fileID: 11400000, guid: cfcad363351ee7e49970a9243af02f29, type: 2}
+  - {fileID: 11400000, guid: 4765262b2e0788941ae8a8eff725cb72, type: 2}
   - {fileID: 11400000, guid: 0740f9215f52f9b488168bb36fefc6d7, type: 2}
-  staffPrefab: {fileID: 0}
-  floorPrefab: {fileID: 0}
+  levelNumber: 1
+  levelTitle: Sandbox
+  nextLevelNumber: 0
+  tutorialSteps: []
+  rewardMoney: 0
+  rewardStaffCount: 0
+  rewardCookerIds: []
+  staffPrefab: {fileID: 8048120873794243087, guid: d36b2d2fc7aace746b6330ce974d26b1, type: 3}
+  floorPrefab: {fileID: 2839335487457518840, guid: f82a46a0a69c00b409db54c8c180817a, type: 3}
   items:
   - {fileID: 11400000, guid: 29330fcd05bbdeb499a56adaac5e8a03, type: 2}
-  - {fileID: 11400000, guid: 4663981386d00de44b39e001cfbd9695, type: 2}
   - {fileID: 11400000, guid: 4e7ec019397b4324487d4a99945ca467, type: 2}
-  - {fileID: 11400000, guid: 0e971e7bb2615ef4b99fa431e0d35976, type: 2}
   - {fileID: 11400000, guid: 826dc63fca73d7d409205ecc3d283d61, type: 2}
-  - {fileID: 11400000, guid: b694da2f39b43154d9664920f9fac2c6, type: 2}
   - {fileID: 11400000, guid: 14001a5784665d04b90d3c34c9dcb595, type: 2}
   - {fileID: 11400000, guid: 126d6cc6bf3e970448f24a8cfe4eac05, type: 2}
-  - {fileID: 11400000, guid: d4b8b712ae7e60b40ab799ae05d937f7, type: 2}
   - {fileID: 11400000, guid: eb861fddfaec04b439b3e27ad57ebf04, type: 2}
-  - {fileID: 11400000, guid: 1da1e5a2de4ec0c4292b3c30d3ad3166, type: 2}
-  - {fileID: 11400000, guid: 72f04368dec0daf4c92a2df9582555e4, type: 2}
   - {fileID: 11400000, guid: ca03e3743a9d9db4486c9eca220c6b6b, type: 2}
   - {fileID: 11400000, guid: c1e34f1b8f115ea42978963e764f041d, type: 2}
+  - {fileID: 11400000, guid: 1da1e5a2de4ec0c4292b3c30d3ad3166, type: 2}
+  - {fileID: 11400000, guid: 72f04368dec0daf4c92a2df9582555e4, type: 2}
+  - {fileID: 11400000, guid: 4663981386d00de44b39e001cfbd9695, type: 2}
+  - {fileID: 11400000, guid: 0e971e7bb2615ef4b99fa431e0d35976, type: 2}
+  - {fileID: 11400000, guid: b694da2f39b43154d9664920f9fac2c6, type: 2}
+  - {fileID: 11400000, guid: d4b8b712ae7e60b40ab799ae05d937f7, type: 2}
   cookers:
   - {fileID: 11400000, guid: 0113cca46735bc3458d90ceb5de6bbba, type: 2}
   - {fileID: 11400000, guid: 0cf66ad38672a7a47a1b7f9b6afa0c8d, type: 2}
