@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using Kitchen.Cookers;
 using Kitchen.Core;
 using Kitchen.Data;
@@ -243,6 +244,7 @@ namespace Kitchen.EditorTools
             ScenarioMaterials();
             ScenarioCampaign();
             ScenarioCookerControls();
+            ScenarioSceneScriptGuids();
             ScenarioFinalConsistency();
         }
 
@@ -1620,9 +1622,10 @@ namespace Kitchen.EditorTools
             // 10 cuts at 0.3 s is 3 s per slice; 9 s covers two with margin.
             Advance(9f);
 
-            int held = cooker.GetOutputCount(Item(GameContentFactory.Ids.CabbageSlice));
-            int stocked = runtime.Inventory.TotalCount(Item(GameContentFactory.Ids.CabbageSlice));
-            bool keptWorking = held + stocked >= 2;
+            ItemDefinition sliceItem = Item(GameContentFactory.Ids.CabbageSlice);
+            int held = cooker.GetOutputCount(sliceItem);
+            int stocked = runtime.Inventory.TotalCount(sliceItem);
+            bool keptWorking = ProducedBy(cooker, sliceItem) >= 2;
             Expect("cooker_keeps_working", keptWorking,
                 $"after 9 s with 2 cabbages the station produced {held} slice(s) held and {stocked} in stock " +
                 $"(expected 2; it used to stop after the first because its output slot was full).");
@@ -1681,11 +1684,14 @@ namespace Kitchen.EditorTools
             Vector2 before = scaler.referenceResolution;
             float savedScale = PlayerPrefs.GetFloat(Kitchen.UI.HudScaler.PrefsKey, 1f);
 
-            // The scaler lives on the canvas, so the harness does not need a UI manager to exercise it.
+            // The scaler has to be on the canvas in the saved scene. Adding one here would hide a broken
+            // wiring, which is exactly how the scale buttons ended up doing nothing in play.
             Kitchen.UI.HudScaler hudScaler = canvas.GetComponent<Kitchen.UI.HudScaler>();
             if (hudScaler == null)
             {
-                hudScaler = canvas.gameObject.AddComponent<Kitchen.UI.HudScaler>();
+                Record("hud_scale_changes_canvas", false,
+                    "the canvas in the scene has no HudScaler component, so the +/- buttons cannot work.");
+                return;
             }
 
             hudScaler.Configure(canvas, before);
@@ -1760,13 +1766,18 @@ namespace Kitchen.EditorTools
             Advance(0.2f);
             bool resumed = cooker.IsActive && cooker.WorkTicks >= partialTicks;
             Advance(3.5f);
-            bool produced = cooker.GetOutputCount(Item(GameContentFactory.Ids.CabbageSlice)) > 0;
+            bool produced = ProducedBy(cooker, Item(GameContentFactory.Ids.CabbageSlice)) > 0;
             Expect("chop_resumes_and_completes", resumed && produced,
                 $"resumed = {resumed}, output = {Describe(runtime.Cookers.DescribeOutputs(cooker))}.");
 
             runtime.Cookers.TryCollectCookerOutput(cooker);
-            Expect("chop_collect", runtime.Inventory.TotalCount(Item(GameContentFactory.Ids.CabbageSlice)) >= 1,
-                $"inventory now holds {runtime.Inventory.TotalCount(Item(GameContentFactory.Ids.CabbageSlice))} cabbage slice(s).");
+            // Produce reaches the kitchen exactly once: collecting again must not duplicate it.
+            runtime.Cookers.TryCollectCookerOutput(cooker);
+            int slicesInStock = runtime.Inventory.TotalCount(Item(GameContentFactory.Ids.CabbageSlice));
+
+            Expect("chop_collect", slicesInStock == 1,
+                $"the kitchen holds {slicesInStock} cabbage slice(s) after one chop and one collect " +
+                "(expected exactly 1).");
         }
 
         // ---- 11. frying ----------------------------------------------------------------------
@@ -1786,9 +1797,9 @@ namespace Kitchen.EditorTools
             MoveStaffTo(0, cooker.GridPosition);
 
             Advance(2.5f);
-            bool halfway = cooker.WorkProgress > 0.3f && cooker.WorkProgress < 0.8f && cooker.GetOutputCount(Item(GameContentFactory.Ids.CookedMeatSlice)) == 0;
+            bool halfway = cooker.WorkProgress > 0.3f && cooker.WorkProgress < 0.8f && ProducedBy(cooker, Item(GameContentFactory.Ids.CookedMeatSlice)) == 0;
             Advance(3.0f);
-            bool done = cooker.GetOutputCount(Item(GameContentFactory.Ids.CookedMeatSlice)) > 0;
+            bool done = ProducedBy(cooker, Item(GameContentFactory.Ids.CookedMeatSlice)) > 0;
             Expect("fry_5_seconds", halfway && done,
                 $"halfway progress = {(halfway ? "about 50%" : "unexpected")}, output = {Describe(runtime.Cookers.DescribeOutputs(cooker))}.");
         }
@@ -1818,9 +1829,9 @@ namespace Kitchen.EditorTools
             ParkAllStaff();
             MoveStaffTo(0, cooker.GridPosition);
             Advance(5.0f);
-            bool half = cooker.WorkProgress > 0.2f && cooker.WorkProgress < 0.85f && cooker.GetOutputCount(salad) == 0;
+            bool half = cooker.WorkProgress > 0.2f && cooker.WorkProgress < 0.85f && ProducedBy(cooker, salad) == 0;
             Advance(6.5f);
-            bool saladDone = cooker.GetOutputCount(salad) > 0;
+            bool saladDone = ProducedBy(cooker, salad) > 0;
             Expect("assemble_salad_10_seconds", half && saladDone,
                 $"mid progress observed = {half}, output = {Describe(runtime.Cookers.DescribeOutputs(cooker))}.");
 
@@ -1834,7 +1845,7 @@ namespace Kitchen.EditorTools
             Advance(0.1f);
             string locked = cooker.LockedRecipe != null ? cooker.LockedRecipe.Id : "<none>";
             Advance(11.0f);
-            bool meatBreadDone = cooker.GetOutputCount(meatBread) > 0;
+            bool meatBreadDone = ProducedBy(cooker, meatBread) > 0;
             bool noSalad = runtime.Inventory.TotalCount(salad) == 0;
             Expect("assemble_four_item_recipe", meatBreadDone && noSalad,
                 $"locked recipe = {locked}, output = {Describe(runtime.Cookers.DescribeOutputs(cooker))}, salad produced = {!noSalad}.");
@@ -1848,8 +1859,8 @@ namespace Kitchen.EditorTools
             MoveStaffTo(0, cooker.GridPosition);
             Advance(15.0f);
 
-            bool nothing = cooker.GetOutputCount(meatBread) == 0
-                && cooker.GetOutputCount(salad) == 0
+            bool nothing = ProducedBy(cooker, meatBread) == 0
+                && ProducedBy(cooker, salad) == 0
                 && runtime.Inventory.TotalCount(meatBread) == 0
                 && runtime.Inventory.TotalCount(salad) == 0;
             bool untouched = runtime.Inventory.TotalCount(cabbageSlice) == 1
@@ -1867,7 +1878,7 @@ namespace Kitchen.EditorTools
             Advance(0.2f);
             bool saladLocked = cooker.LockedRecipe != null && cooker.LockedRecipe.Id == "assemble_salad";
             Advance(10.5f);
-            bool saladMade = cooker.GetOutputCount(salad) > 0 || runtime.Inventory.TotalCount(salad) > 0;
+            bool saladMade = ProducedBy(cooker, salad) > 0 || runtime.Inventory.TotalCount(salad) > 0;
             Expect("assemble_starts_once_complete", saladLocked && saladMade,
                 $"salad locked = {saladLocked}, salad produced = {saladMade}, output = {Describe(runtime.Cookers.DescribeOutputs(cooker))}.");
 
@@ -1925,7 +1936,7 @@ namespace Kitchen.EditorTools
             ParkAllStaff();
             MoveStaffTo(0, cooker.GridPosition);
             Advance(6.0f);
-            Expect("wash_stops_without_dirty_plates", runtime.Inventory.TotalCount(clean) == 0 && cooker.GetOutputCount(clean) == 0,
+            Expect("wash_stops_without_dirty_plates", runtime.Inventory.TotalCount(clean) == 0 && ProducedBy(cooker, clean) == 0,
                 $"clean plates produced with an empty dirty stock = {runtime.Inventory.TotalCount(clean)}.");
         }
 
@@ -2237,6 +2248,47 @@ namespace Kitchen.EditorTools
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Every script referenced by the saved scene must resolve to a real asset.
+        ///
+        /// A component whose script guid does not exist silently disappears, which is how the HUD scale
+        /// control ended up detached from the canvas: the scene was authored in a copy of the project and
+        /// the copied scene carried a guid that the real project never had. This check turns that into a
+        /// failure instead of a dead button.
+        /// </summary>
+        private static void ScenarioSceneScriptGuids()
+        {
+            if (!File.Exists(KitchenSceneGenerator.ScenePath))
+            {
+                Record("scene_script_guids_resolve", false, "the scene file does not exist.");
+                return;
+            }
+
+            string yaml = File.ReadAllText(KitchenSceneGenerator.ScenePath);
+            MatchCollection scripts = Regex.Matches(
+                yaml, @"m_Script: \{fileID: \d+, guid: ([0-9a-f]{32}), type: 3\}");
+
+            List<string> unresolved = new List<string>();
+            int checkedScripts = 0;
+
+            for (int i = 0; i < scripts.Count; i++)
+            {
+                string guid = scripts[i].Groups[1].Value;
+                checkedScripts++;
+
+                if (string.IsNullOrEmpty(AssetDatabase.GUIDToAssetPath(guid)) && !unresolved.Contains(guid))
+                {
+                    unresolved.Add(guid);
+                }
+            }
+
+            Expect("scene_script_guids_resolve", unresolved.Count == 0 && checkedScripts > 0,
+                unresolved.Count == 0
+                    ? $"{checkedScripts} script reference(s) in the scene all resolve to an asset."
+                    : $"{unresolved.Count} script guid(s) point at nothing: " +
+                      string.Join(", ", unresolved.ToArray()));
         }
 
         private static void ScenarioFinalConsistency()
@@ -2609,6 +2661,20 @@ namespace Kitchen.EditorTools
             }
 
             return new Vector2Int(0, 0);
+        }
+
+        /// <summary>
+        /// Units of an item the cooker has produced, whether they are still held in its output slot or
+        /// already in the kitchen stock. Checks use this so they do not depend on where produce lives.
+        /// </summary>
+        private static int ProducedBy(CookerRuntime cooker, ItemDefinition item)
+        {
+            int held = cooker != null ? cooker.GetOutputCount(item) : 0;
+            int stock = runtime != null && runtime.Inventory != null
+                ? runtime.Inventory.TotalCount(item)
+                : 0;
+
+            return held + stock;
         }
 
         private static CookerRuntime FindCooker(string definitionId)

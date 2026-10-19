@@ -17,6 +17,6 @@ MonoBehaviour:
   category: 0
   viewColor: {r: 0.86, g: 0.25, b: 0.2, a: 1}
   viewScale: 0.28
-  viewPrefab: {fileID: 8602018895375444390, guid: 09a6d1fdc7c5f40458e09f79c060a701, type: 3}
+  viewPrefab: {fileID: 929725571921088715, guid: 09a6d1fdc7c5f40458e09f79c060a701, type: 3}
   viewMaterial: {fileID: 0}
   icon: {fileID: 0}

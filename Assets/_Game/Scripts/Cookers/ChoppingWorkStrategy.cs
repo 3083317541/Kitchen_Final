@@ -77,7 +77,7 @@ namespace Kitchen.Cookers
 
             // The raw item is reserved for this station, so it is consumed straight from the
             // reservation. Free stock is zero by definition while the work is in flight.
-            // RecipeManager creates the finished slice exactly once; the station then holds it.
+            // RecipeManager creates the finished slice exactly once; it goes straight to stock.
             if (!recipes.TryConvert(cooker, recipe, true, out List<ItemStack> produced))
             {
                 ClearLock(cooker);
@@ -86,18 +86,23 @@ namespace Kitchen.Cookers
                 return;
             }
 
-            for (int i = 0; i < produced.Count; i++)
+            // The slice is credited to the kitchen immediately, so the stock readout reflects the work
+            // and the assembly table can pick it up without a manual collection step.
+            if (inventory != null)
             {
-                if (produced[i].IsValid)
+                for (int i = 0; i < produced.Count; i++)
                 {
-                    cooker.AddOutput(produced[i].Item, produced[i].Count);
+                    if (produced[i].IsValid)
+                    {
+                        inventory.Add(produced[i].Item, produced[i].Count);
+                    }
                 }
             }
 
             cooker.ForgetLock();
             cooker.ResetProgress();
             cooker.WorkSeconds = 0f;
-            cooker.State = cooker.HasAnyOutput ? CookerState.ReadyToCollect : CookerState.Idle;
+            cooker.State = CookerState.Idle;
 
             if (TryLockNextItem(cooker, recipes))
             {
@@ -105,9 +110,7 @@ namespace Kitchen.Cookers
             }
             else
             {
-                cooker.StatusText = cooker.HasAnyOutput
-                    ? "已完成，请收取产出"
-                    : "等待材料";
+                cooker.StatusText = "等待材料";
             }
         }
 

@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 876c9ff8b0bbe45469f030333a9f6ff9, type: 3}
+  m_Name: Recipe_wash_plate
+  m_EditorClassIdentifier: 
+  id: wash_plate
+  displayName: "\u6D17\u76D8\u5B50"
+  cookerKind: 3
+  inputs:
+  - item: {fileID: 11400000, guid: c1e34f1b8f115ea42978963e764f041d, type: 2}
+    count: 1
+  outputs:
+  - item: {fileID: 11400000, guid: ca03e3743a9d9db4486c9eca220c6b6b, type: 2}
+    count: 1
+  priority: 0
