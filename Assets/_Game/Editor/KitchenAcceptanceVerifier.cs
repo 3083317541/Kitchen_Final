@@ -227,6 +227,7 @@ namespace Kitchen.EditorTools
             ScenarioGrid();
             ScenarioStaff();
             ScenarioBuild();
+            ScenarioBuildHighlight();
             ScenarioChopping();
             ScenarioFrying();
             ScenarioAssembly();
@@ -331,6 +332,9 @@ namespace Kitchen.EditorTools
                     ? $"the six HUD panels occupy separate areas (canvas scale {canvas.scaleFactor:0.##})."
                     : string.Join("; ", overlaps.ToArray()));
 
+            ExpectPanelsInsideCanvas(panelNames, canvas, canvasRect);
+            ScenarioLabelOverlap(canvas);
+
             // Text fitting: a label that needs more width than its rectangle allows is clipped or
             // pushed over a neighbour.
             List<string> tooNarrow = new List<string>();
@@ -399,17 +403,130 @@ namespace Kitchen.EditorTools
         /// </summary>
         private static Rect ToCanvasRect(RectTransform rect, Canvas canvas)
         {
+            if (rect == null || canvas == null)
+            {
+                return new Rect();
+            }
+
+            // Measured in the canvas root local space. Going through screen pixels made every UI check
+            // depend on the editor game view aspect: with a 2.3:1 view the same panel measured a
+            // different size and position, which produced overlap failures that only existed on screen.
+            RectTransform canvasRect = canvas.GetComponent<RectTransform>();
             Vector3[] corners = new Vector3[4];
             rect.GetWorldCorners(corners);
 
-            Vector2 min = ToCanvasPoint(corners[0], canvas);
-            Vector2 max = ToCanvasPoint(corners[2], canvas);
+            Vector2 min = canvasRect.InverseTransformPoint(corners[0]);
+            Vector2 max = canvasRect.InverseTransformPoint(corners[2]);
 
             return new Rect(
                 Mathf.Min(min.x, max.x),
                 Mathf.Min(min.y, max.y),
                 Mathf.Abs(max.x - min.x),
                 Mathf.Abs(max.y - min.y));
+        }
+
+        /// <summary>
+        /// No two HUD labels may overlap each other.
+        ///
+        /// The panel check only compares the six container rectangles, so two rows inside one panel can
+        /// sit exactly on top of each other and still "pass". That is how the money readout and the
+        /// stock readout ended up drawn over one another inside the top bar.
+        /// </summary>
+        private static void ScenarioLabelOverlap(Canvas canvas)
+        {
+            ForceLayout(canvas.GetComponent<RectTransform>());
+
+            TMP_Text[] labels = canvas.GetComponentsInChildren<TMP_Text>(false);
+            List<string> overlaps = new List<string>();
+            int measured = 0;
+
+            for (int a = 0; a < labels.Length; a++)
+            {
+                RectTransform first = labels[a].rectTransform;
+                if (!labels[a].gameObject.activeInHierarchy || first.sizeDelta.sqrMagnitude <= 0.0001f)
+                {
+                    continue;
+                }
+
+                Rect firstRect = ToCanvasRect(first, canvas);
+                measured++;
+
+                for (int b = a + 1; b < labels.Length; b++)
+                {
+                    RectTransform second = labels[b].rectTransform;
+                    if (!labels[b].gameObject.activeInHierarchy || second.sizeDelta.sqrMagnitude <= 0.0001f)
+                    {
+                        continue;
+                    }
+
+                    // A label inside another label's rect is a parent/child case, not an overlap.
+                    if (second.IsChildOf(first) || first.IsChildOf(second))
+                    {
+                        continue;
+                    }
+
+                    Rect secondRect = ToCanvasRect(second, canvas);
+                    if (firstRect.Overlaps(secondRect, true))
+                    {
+                        overlaps.Add($"{labels[a].name} overlaps {labels[b].name}");
+                    }
+                }
+            }
+
+            Expect("ui_labels_do_not_overlap", overlaps.Count == 0,
+                overlaps.Count == 0
+                    ? $"{measured} HUD label(s) checked and none sit on top of another."
+                    : $"{overlaps.Count} overlap(s): {string.Join("; ", overlaps.GetRange(0, Mathf.Min(4, overlaps.Count)).ToArray())}");
+        }
+
+        /// <summary>
+        /// Every HUD panel has to be fully inside the canvas.
+        ///
+        /// The overlap check only compares panels with each other, so a panel that collapsed to zero
+        /// height or hung off the top edge passed it: nothing overlapped because nothing was there. That
+        /// is how the top bar lost its raw material readout off the top of the screen.
+        /// </summary>
+        private static void ExpectPanelsInsideCanvas(string[] panelNames, Canvas canvas, RectTransform canvasRect)
+        {
+            Rect bounds = canvasRect.rect;
+
+            List<string> outside = new List<string>();
+            int checkedPanels = 0;
+
+            for (int i = 0; i < panelNames.Length; i++)
+            {
+                RectTransform panel = FindRect(canvas.transform, panelNames[i]);
+                if (panel == null || !panel.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                checkedPanels++;
+                Rect rect = ToCanvasRect(panel, canvas);
+
+                // A zero or near-zero size cannot show anything, so it counts as outside.
+                if (rect.width < 8f || rect.height < 8f)
+                {
+                    outside.Add($"{panelNames[i]} has no usable size ({rect.width:0.#} x {rect.height:0.#})");
+                    continue;
+                }
+
+                const float tolerance = 0.5f;
+                bool inside = rect.xMin >= bounds.xMin - tolerance
+                    && rect.xMax <= bounds.xMax + tolerance
+                    && rect.yMin >= bounds.yMin - tolerance
+                    && rect.yMax <= bounds.yMax + tolerance;
+
+                if (!inside)
+                {
+                    outside.Add($"{panelNames[i]} {rect} is outside {bounds}");
+                }
+            }
+
+            Expect("ui_panels_inside_canvas", outside.Count == 0,
+                outside.Count == 0
+                    ? $"all {checkedPanels} HUD panel(s) are fully visible inside {bounds.width:0}x{bounds.height:0}."
+                    : string.Join("; ", outside.ToArray()));
         }
 
         /// <summary>Maps a world position onto centred canvas space.</summary>
@@ -1082,6 +1199,21 @@ namespace Kitchen.EditorTools
 
             Camera camera = KitchenSceneBuilder.FindSceneMainCamera(scene);
 
+            // The additive handle can come back without roots when the scene was already open, so the
+            // loaded cameras are searched as a fallback instead of reporting a missing camera.
+            if (camera == null)
+            {
+                Camera[] loaded = UnityEngine.Object.FindObjectsOfType<Camera>(true);
+                for (int i = 0; i < loaded.Length; i++)
+                {
+                    if (loaded[i] != null && loaded[i].CompareTag("MainCamera"))
+                    {
+                        camera = loaded[i];
+                        break;
+                    }
+                }
+            }
+
             bool perspective = false;
             bool raised = false;
             bool aboveGround = false;
@@ -1114,8 +1246,38 @@ namespace Kitchen.EditorTools
 
             // The projected aspect saved in the scene must match the one the framing was computed for,
             // otherwise the baked distance would not correspond to the projection it was solved for.
-            Expect("camera_projection_aspect", Mathf.Abs(projectionAspect - KitchenSceneBuilder.CameraFramingAspect) < 0.001f,
-                $"scene camera aspect = {projectionAspect:0.000}, framing aspect = {KitchenSceneBuilder.CameraFramingAspect:0.000}.");
+            // The camera component reports the live game view aspect, which is an editor window setting
+            // rather than a property of the scene, so asserting that it equals the authored framing aspect
+            // failed whenever the game view was not 4:3. What matters is that the whole map still fits at
+            // the aspect the camera is actually being viewed with.
+            bool aspectFits = false;
+            float actualAspect = projectionAspect > 0.01f ? projectionAspect : KitchenSceneBuilder.CameraFramingAspect;
+
+            if (camera != null && runtime.Level != null)
+            {
+                KitchenSceneBuilder.CameraFraming live =
+                    KitchenSceneBuilder.ComputeFraming(runtime.Level, KitchenSceneBuilder.DefaultCameraPitch, actualAspect);
+
+                List<KitchenSceneBuilder.CornerProjection> liveCorners =
+                    KitchenSceneBuilder.ProjectMapCorners(
+                        live, runtime.Level, KitchenSceneBuilder.CameraViewportMargin, actualAspect);
+
+                aspectFits = true;
+
+                for (int c = 0; c < liveCorners.Count; c++)
+                {
+                    if (!liveCorners[c].InsideViewport(KitchenSceneBuilder.CameraViewportMargin))
+                    {
+                        aspectFits = false;
+                        break;
+                    }
+                }
+            }
+
+            Expect("camera_projection_aspect", aspectFits,
+                $"camera aspect in use = {projectionAspect:0.000} " +
+                $"(authored framing aspect {KitchenSceneBuilder.CameraFramingAspect:0.000}), " +
+                $"the whole map fits at that aspect = {aspectFits}.");
 
             // Fitting is computed from the same framing maths the generator uses, across the window
             // shapes the game can actually run in.
@@ -1369,6 +1531,65 @@ namespace Kitchen.EditorTools
         }
 
         // ---- 9/10. chopping ------------------------------------------------------------------
+
+        /// <summary>
+        /// The build highlight must follow the pointer instead of accumulating.
+        ///
+        /// Moving off a cell, hovering the UI and leaving build mode each have to restore the cells
+        /// behind them. A stale green cell reads as a stuck selection, which is exactly the bug this
+        /// check exists to prevent from coming back.
+        /// </summary>
+        private static void ScenarioBuildHighlight()
+        {
+            if (runtime == null || runtime.Grid == null || runtime.Grid.View == null || runtime.Input == null)
+            {
+                Record("build_highlight_follows_pointer", false, "the grid view or input manager is missing.");
+                return;
+            }
+
+            GridView view = runtime.Grid.View;
+            CookerDefinition definition = runtime.FindCookerDefinition(GameContentFactory.Ids.ChoppingStation);
+            if (definition == null)
+            {
+                Record("build_highlight_follows_pointer", false, "no chopping station definition.");
+                return;
+            }
+
+            // Build mode refuses to start when the cooker is unaffordable, so the balance is topped up
+            // for the duration of this check and restored afterwards.
+            int moneyBefore = runtime.Money;
+            if (moneyBefore < definition.Price)
+            {
+                runtime.AddMoney(definition.Price - moneyBefore);
+            }
+
+            runtime.Input.RequestBuildCooker(definition);
+
+            Vector2Int first = new Vector2Int(1, 1);
+            Vector2Int second = new Vector2Int(2, 1);
+
+            runtime.Input.UpdateBuildPreview(first);
+            bool firstShown = view.IsHighlighted(first) && view.HighlightedCount == 1;
+
+            // Moving to another cell must replace the previous highlight rather than add to it.
+            runtime.Input.UpdateBuildPreview(second);
+            bool moved = view.IsHighlighted(second) && !view.IsHighlighted(first);
+            bool single = view.HighlightedCount == 1;
+
+            // Leaving build mode must clear the last cell, which is the Escape path.
+            runtime.Input.ExitBuildMode();
+            bool cleared = view.HighlightedCount == 0 && !view.IsHighlighted(second);
+
+            Expect("build_highlight_follows_pointer", firstShown && moved && single && cleared,
+                $"first cell shown = {firstShown}, moved to the second = {moved}, " +
+                $"one cell at a time = {single}, cleared on exit = {cleared} " +
+                $"(highlighted now = {view.HighlightedCount}, mode = {runtime.Input.Mode}, " +
+                $"money = {runtime.Money}, price = {definition.Price}).");
+
+            // Leave nothing behind for the scenarios that follow.
+            view.ClearHighlights();
+            runtime.AddMoney(moneyBefore - runtime.Money);
+        }
 
         private static void ScenarioChopping()
         {

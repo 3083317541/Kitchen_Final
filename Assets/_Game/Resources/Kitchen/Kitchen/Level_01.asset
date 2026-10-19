@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d2a2df1b10c9244cb43b0d217070d8e, type: 3}
+  m_Name: Level_01
+  m_EditorClassIdentifier: 
+  width: 5
+  height: 5
+  cellSize: 2
+  mapCenter: {x: 0, y: 0, z: 0}
+  groundHeight: 0
+  startingMoney: 170
+  startingInventory:
+  - item: {fileID: 11400000, guid: 4e7ec019397b4324487d4a99945ca467, type: 2}
+    count: 4
+  - item: {fileID: 11400000, guid: 826dc63fca73d7d409205ecc3d283d61, type: 2}
+    count: 4
+  - item: {fileID: 11400000, guid: ca03e3743a9d9db4486c9eca220c6b6b, type: 2}
+    count: 3
+  startingCookers: []
+  staffCount: 1
+  staffSpawnOffsets:
+  - {x: 0, y: -1}
+  orderSequence:
+  - {fileID: 11400000, guid: cfcad363351ee7e49970a9243af02f29, type: 2}
+  - {fileID: 11400000, guid: 4765262b2e0788941ae8a8eff725cb72, type: 2}
+  levelNumber: 1
+  levelTitle: "\u7B2C\u4E00\u5173 \xB7 \u6C99\u62C9"
+  nextLevelNumber: 2
+  tutorialSteps:
+  - "\u7B2C\u4E00\u6B65\uFF1A\u7528\u9F20\u6807\u5DE6\u952E\u9009\u4E2D\u53A8\u5E08\uFF0C\u518D\u70B9\u51FB\u5730\u9762\u4E0A\u7684\u7A7A\u683C\u5B50\u628A\u4ED6\u653E\u4E0B\u3002"
+  - "\u7B2C\u4E8C\u6B65\uFF1A\u5728\u5DE6\u4FA7\u5546\u5E97\u8D2D\u4E70\u5207\u83DC\u53F0\uFF0C\u7136\u540E\u70B9\u51FB\u4E00\u4E2A\u7A7A\u683C\u5B50\u653E\u7F6E\u3002"
+  - "\u7B2C\u4E09\u6B65\uFF1A\u540C\u6837\u65B9\u5F0F\u8D2D\u4E70\u5E76\u653E\u7F6E\u7EC4\u88C5\u53F0\u3002"
+  - "\u7B2C\u56DB\u6B65\uFF1A\u8BA9\u53A8\u5E08\u7AD9\u5728\u53A8\u5177\u6240\u5728\u7684\u683C\u5B50\u4E0A\uFF0C\u53A8\u5177\u624D\u4F1A\u5F00\u59CB\u5DE5\u4F5C\u3002"
+  rewardMoney: 0
+  rewardStaffCount: 1
+  rewardCookerIds:
+  - frying_pan
+  staffPrefab: {fileID: 2804433748316546732, guid: d36b2d2fc7aace746b6330ce974d26b1, type: 3}
+  floorPrefab: {fileID: 21840060929336600, guid: f82a46a0a69c00b409db54c8c180817a, type: 3}
+  items:
+  - {fileID: 11400000, guid: 4e7ec019397b4324487d4a99945ca467, type: 2}
+  - {fileID: 11400000, guid: 826dc63fca73d7d409205ecc3d283d61, type: 2}
+  - {fileID: 11400000, guid: ca03e3743a9d9db4486c9eca220c6b6b, type: 2}
+  - {fileID: 11400000, guid: 1da1e5a2de4ec0c4292b3c30d3ad3166, type: 2}
+  - {fileID: 11400000, guid: c1e34f1b8f115ea42978963e764f041d, type: 2}
+  - {fileID: 11400000, guid: 0e971e7bb2615ef4b99fa431e0d35976, type: 2}
+  - {fileID: 11400000, guid: b694da2f39b43154d9664920f9fac2c6, type: 2}
+  cookers:
+  - {fileID: 11400000, guid: 0113cca46735bc3458d90ceb5de6bbba, type: 2}
+  - {fileID: 11400000, guid: f6f7bd403d8ce8c4c8b4222b235c614b, type: 2}
+  recipes:
+  - {fileID: 11400000, guid: a31c8ad52018b2f4682d8f1f69afa02d, type: 2}
+  - {fileID: 11400000, guid: 635ce14fc1d09c045ac4669366c9cf14, type: 2}
+  - {fileID: 11400000, guid: 332e0d5ee32d6314687c1c71c12f5bef, type: 2}

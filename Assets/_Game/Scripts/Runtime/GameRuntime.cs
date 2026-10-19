@@ -198,7 +198,7 @@ namespace Kitchen.Runtime
             // 1. Input first: it needs nothing else, and every later system may want to read a mode.
             if (inputManager != null)
             {
-                inputManager.Initialize(worldCamera);
+                inputManager.Initialize(worldCamera, this);
             }
 
             // 2. Systems. Order matters: the grid exists before anything can be placed on it.

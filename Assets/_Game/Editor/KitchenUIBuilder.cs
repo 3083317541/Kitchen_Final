@@ -95,30 +95,57 @@ namespace Kitchen.EditorTools
 
         private static void BuildTopBar(Transform canvas)
         {
+            // Height of the status band, and the gap between it and the top edge of the screen.
+            const float barHeight = 96f;
+            const float margin = 12f;
+            const float side = 24f;
+
             GameObject panelObject = Panel(canvas, "TopBar", new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, -96f), PanelColor);
+                Vector2.zero, PanelColor);
             RectTransform bar = panelObject.GetComponent<RectTransform>();
-            bar.offsetMin = new Vector2(24f, 0f);
-            bar.offsetMax = new Vector2(-24f, 0f);
+            bar.pivot = new Vector2(0.5f, 1f);
 
-            // Two groups side by side: the left one holds live status, the right one holds the clock
-            // and the kitchen stock. Separation is by layout, never by guessing widths.
-            RectTransform left = HorizontalGroup(bar, "StatusGroup", 26f, TextAlignmentOptions.MidlineLeft);
-            RectTransform right = HorizontalGroup(bar, "InfoGroup", 26f, TextAlignmentOptions.MidlineRight);
+            // Both anchors are the top edge, so the vertical offsets are what give the band its height:
+            // from `margin` below the top down to `margin + barHeight`. Collapsing both offsets to zero
+            // left the bar with zero height, which drew the money and the raw material readout half off
+            // the top of the screen.
+            bar.offsetMin = new Vector2(side, -margin - barHeight);
+            bar.offsetMax = new Vector2(-side, -margin);
 
-            LayoutElement leftElement = left.gameObject.AddComponent<LayoutElement>();
-            leftElement.flexibleWidth = 0f;
-            leftElement.minWidth = 640f;
+            // The bar is itself a layout group with two rows. Laying the rows out instead of placing
+            // them by hand is what stops the status row and the stock row from being drawn on top of
+            // each other: an unparented child of a plain panel all start at the same origin.
+            VerticalLayoutGroup column = bar.gameObject.AddComponent<VerticalLayoutGroup>();
+            column.spacing = 2f;
+            column.padding = new RectOffset(20, 20, 6, 6);
+            column.childAlignment = TextAnchor.MiddleLeft;
+            column.childControlWidth = true;
+            column.childControlHeight = true;
+            column.childForceExpandWidth = true;
+            column.childForceExpandHeight = false;
 
-            LayoutElement rightElement = right.gameObject.AddComponent<LayoutElement>();
-            rightElement.flexibleWidth = 1f;
+            RectTransform statusRow = HorizontalGroup(bar, "StatusGroup", 26f, TextAlignmentOptions.MidlineLeft);
+            RectTransform infoRow = HorizontalGroup(bar, "InfoGroup", 26f, TextAlignmentOptions.MidlineRight);
 
-            Text(left, "MoneyText", "金钱 0", FontHuge, TextMoney, TextAlignmentOptions.MidlineLeft, 220f);
-            Text(left, "ModeText", "普通", FontBody, TextColor, TextAlignmentOptions.MidlineLeft, 420f);
+            LayoutElement statusElement = statusRow.gameObject.AddComponent<LayoutElement>();
+            statusElement.minHeight = 40f;
+            statusElement.preferredHeight = 40f;
+            statusElement.flexibleWidth = 1f;
 
-            Text(right, "InventoryText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineRight, 900f);
-            Text(right, "OrderCountText", "完成 0 / 失败 0", FontSmall, TextMuted, TextAlignmentOptions.MidlineRight, 300f);
-            Text(right, "TimeText", "00:00", FontBody, TextColor, TextAlignmentOptions.MidlineRight, 140f);
+            LayoutElement infoElement = infoRow.gameObject.AddComponent<LayoutElement>();
+            infoElement.minHeight = 30f;
+            infoElement.preferredHeight = 30f;
+            infoElement.flexibleWidth = 1f;
+
+            // Row one: money on the left, the current mode taking the rest of the width.
+            Text(statusRow, "MoneyText", "金钱 0", FontHuge, TextMoney, TextAlignmentOptions.MidlineLeft, 240f);
+            Text(statusRow, "ModeText", "普通模式", FontBody, TextColor, TextAlignmentOptions.MidlineLeft, 0f);
+
+            // Row two: the kitchen stock gets the whole row so a long ingredient list never has to
+            // compete for space with the clock.
+            Text(infoRow, "InventoryText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f);
+            Text(infoRow, "OrderCountText", "完成 0 / 失败 0", FontSmall, TextMuted, TextAlignmentOptions.MidlineRight, 300f);
+            Text(infoRow, "TimeText", "00:00", FontBody, TextColor, TextAlignmentOptions.MidlineRight, 140f);
         }
 
         private static void BuildCookerShopPanel(Transform canvas)

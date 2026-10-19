@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d32b790baef5d4c861c9facab8f055, type: 3}
+  m_Name: Order_order_salad_plus
+  m_EditorClassIdentifier: 
+  id: order_salad_plus
+  displayName: "\u6C99\u62C9\u52A0\u6025\u8BA2\u5355"
+  dish: {fileID: 11400000, guid: 1da1e5a2de4ec0c4292b3c30d3ad3166, type: 2}
+  dishCount: 1
+  cleanPlatesRequired: 1
+  reward: 140
+  timeLimit: 150

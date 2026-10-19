@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53b2b59def80fa046b567ee7ea53c3a9, type: 3}
+  m_Name: Cooker_dish_washer
+  m_EditorClassIdentifier: 
+  id: dish_washer
+  displayName: "\u6D17\u7897\u53F0"
+  kind: 3
+  price: 60
+  workType: 3
+  duration: 5
+  tickInterval: 0.3
+  requiredTicks: 10
+  bodyColor: {r: 0.62, g: 0.68, b: 0.74, a: 1}
+  accentColor: {r: 0.34, g: 0.72, b: 0.78, a: 1}
+  bodySize: {x: 1.6, y: 0.6, z: 1.6}
+  viewPrefab: {fileID: 3081694335711073758, guid: b33aea04fd1586f418ea88d3fac86651, type: 3}
+  bodyMaterial: {fileID: 0}
+  accentMaterial: {fileID: 0}

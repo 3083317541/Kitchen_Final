@@ -41,6 +41,12 @@ namespace Kitchen.Input
         private ItemDefinition selectedIngredient;
         private PlacementPreview preview;
         private Camera worldCamera;
+
+        /// <summary>
+        /// Runtime this manager drives. Injected by GameRuntime so the pointer code never depends on
+        /// which runtime happens to be the static instance.
+        /// </summary>
+        private Runtime.GameRuntime runtime;
         private float moveRepeatTimer;
         private readonly Vector2Int[] lastDirections = new Vector2Int[4];
 
@@ -115,9 +121,25 @@ namespace Kitchen.Input
 
         // ------------------------------------------------------------------ setup
 
+        /// <summary>
+        /// The runtime this manager acts on: the injected one, or the static instance as a fallback for
+        /// a scene that was not booted through GameRuntime.
+        /// </summary>
+        private Runtime.GameRuntime ActiveRuntime => runtime != null ? runtime : Runtime.GameRuntime.Instance;
+
         /// <summary>Injects the camera and resolves the layers. Called by GameRuntime before the first tick.</summary>
         public void Initialize(Camera camera)
         {
+            Initialize(camera, null);
+        }
+
+        /// <summary>
+        /// Injects the camera and the runtime the input should act on. Passing the runtime explicitly
+        /// keeps the manager independent of the static instance, which is what makes it testable.
+        /// </summary>
+        public void Initialize(Camera camera, Runtime.GameRuntime owner)
+        {
+            runtime = owner;
             worldCamera = camera != null ? camera : Camera.main;
 
             if (!layersInitialized)
@@ -186,6 +208,9 @@ namespace Kitchen.Input
             {
                 preview.Hide();
             }
+
+            // Cancelling with Escape takes this path, so the highlight is cleared here too.
+            ClearCellHighlights();
 
             if (mode == InteractionMode.Build)
             {
@@ -284,6 +309,12 @@ namespace Kitchen.Input
             if (PointerOverUI)
             {
                 HoveredCellLegal = false;
+
+                // The pointer left the world, so the build highlight has to go with it. Returning early
+                // without clearing left the last hovered cell green for as long as the UI was under the
+                // cursor.
+                ClearCellHighlights();
+                preview?.Hide();
                 return;
             }
 
@@ -374,34 +405,35 @@ namespace Kitchen.Input
             }
         }
 
-        private static int GridWidth()
+        private int GridWidth()
         {
-            Runtime.GameRuntime runtime = Runtime.GameRuntime.Instance;
+            Runtime.GameRuntime runtime = ActiveRuntime;
             return runtime != null && runtime.Grid != null ? runtime.Grid.Width : 5;
         }
 
-        private static int GridHeight()
+        private int GridHeight()
         {
-            Runtime.GameRuntime runtime = Runtime.GameRuntime.Instance;
+            Runtime.GameRuntime runtime = ActiveRuntime;
             return runtime != null && runtime.Grid != null ? runtime.Grid.Height : 5;
         }
 
-        private static Vector2Int WorldToGrid(Vector3 world)
+        private Vector2Int WorldToGrid(Vector3 world)
         {
-            Runtime.GameRuntime runtime = Runtime.GameRuntime.Instance;
+            Runtime.GameRuntime runtime = ActiveRuntime;
             return runtime != null && runtime.Grid != null ? runtime.Grid.WorldToGrid(world) : Vector2Int.zero;
         }
 
         // ------------------------------------------------------------------ mode actions
 
-        private void UpdateBuildPreview(Vector2Int cell)
+        /// <summary>
+        /// Shows the build ghost and the cell highlight under the pointer.
+        ///
+        /// The highlight is cleared before the new one is applied. Setting only the new cell left every
+        /// cell the pointer had crossed still green, which read as a stuck selection.
+        /// </summary>
+        public void UpdateBuildPreview(Vector2Int cell)
         {
-            if (preview == null || pendingCooker == null)
-            {
-                return;
-            }
-
-            Runtime.GameRuntime runtime = Runtime.GameRuntime.Instance;
+            Runtime.GameRuntime runtime = ActiveRuntime;
             if (runtime == null || runtime.Grid == null)
             {
                 return;
@@ -409,14 +441,25 @@ namespace Kitchen.Input
 
             bool inBounds = runtime.Grid.InBounds(cell);
             bool free = inBounds && runtime.Grid.IsFreeForCooker(cell);
-            bool affordable = runtime.CanAfford(pendingCooker.Price);
+
+            // A missing pending definition means the highlight is being driven on its own; the cell is
+            // still legal in that case, so the highlight logic does not depend on the purchase state.
+            bool affordable = pendingCooker == null || runtime.CanAfford(pendingCooker.Price);
             bool legal = inBounds && free && affordable;
 
             HoveredCellLegal = legal;
 
-            Vector3 world = runtime.Grid.GridToWorld(inBounds ? cell : runtime.Grid.WorldToGridClamped(worldCamera.transform.position));
-            preview.Show(pendingCooker, world, cell);
-            preview.SetValid(legal, cell);
+            // The ghost is optional: a scene without a placement preview still gets the highlight, and
+            // the highlight is the part the player reads as "this cell can take a cooker".
+            if (preview != null && pendingCooker != null)
+            {
+                Vector3 world = runtime.Grid.GridToWorld(
+                    inBounds ? cell : runtime.Grid.WorldToGridClamped(worldCamera.transform.position));
+                preview.Show(pendingCooker, world, cell);
+                preview.SetValid(legal, cell);
+            }
+
+            ClearCellHighlights();
 
             if (runtime.Grid.View != null)
             {
@@ -424,9 +467,22 @@ namespace Kitchen.Input
             }
         }
 
+        /// <summary>
+        /// Restores every highlighted cell to its normal look. The build preview owns the highlight, so
+        /// it is dropped whenever the pointer moves to another cell, hovers the UI, or build mode ends.
+        /// </summary>
+        public void ClearCellHighlights()
+        {
+            Runtime.GameRuntime runtime = ActiveRuntime;
+            if (runtime != null && runtime.Grid != null && runtime.Grid.View != null)
+            {
+                runtime.Grid.View.ClearHighlights();
+            }
+        }
+
         private void ConfirmBuild(Vector2Int cell)
         {
-            Runtime.GameRuntime runtime = Runtime.GameRuntime.Instance;
+            Runtime.GameRuntime runtime = ActiveRuntime;
             if (runtime == null || pendingCooker == null)
             {
                 return;
@@ -449,7 +505,7 @@ namespace Kitchen.Input
 
         private void ConfirmCookerMove(Vector2Int cell)
         {
-            Runtime.GameRuntime runtime = Runtime.GameRuntime.Instance;
+            Runtime.GameRuntime runtime = ActiveRuntime;
             if (runtime == null || pendingMoveCooker == null)
             {
                 return;
@@ -497,7 +553,7 @@ namespace Kitchen.Input
 
         private void HandleWorldSelection(GameObject hitObject, Vector2Int cell)
         {
-            Runtime.GameRuntime runtime = Runtime.GameRuntime.Instance;
+            Runtime.GameRuntime runtime = ActiveRuntime;
             if (runtime == null)
             {
                 return;

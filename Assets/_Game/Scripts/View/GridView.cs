@@ -51,6 +51,12 @@ namespace Kitchen.View
         /// <summary>Number of cells currently highlighted.</summary>
         public int HighlightedCount => highlighted.Count;
 
+        /// <summary>True when this cell currently carries a highlight. Used by the acceptance suite.</summary>
+        public bool IsHighlighted(Vector2Int cell)
+        {
+            return highlighted.Contains(cell);
+        }
+
         /// <summary>
         /// Builds the cells and floor straight from a level, without a manager.
         ///
