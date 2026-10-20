@@ -26,15 +26,15 @@ namespace Kitchen.EditorTools
         public const float CanvasHeight = 1080f;
 
         // Panel palette
-        private static readonly Color PanelColor = new Color(0.07f, 0.08f, 0.11f, 0.93f);
-        private static readonly Color CardColor = new Color(0.13f, 0.15f, 0.19f, 0.95f);
-        private static readonly Color ButtonColor = new Color(0.20f, 0.33f, 0.50f, 1f);
-        private static readonly Color ButtonColorServe = new Color(0.18f, 0.46f, 0.26f, 1f);
-        private static readonly Color ButtonColorNeutral = new Color(0.28f, 0.30f, 0.36f, 1f);
-        private static readonly Color ButtonColorDanger = new Color(0.46f, 0.21f, 0.21f, 1f);
-        private static readonly Color TextColor = new Color(0.93f, 0.95f, 0.98f, 1f);
-        private static readonly Color TextMuted = new Color(0.70f, 0.74f, 0.82f, 1f);
-        private static readonly Color TextMoney = new Color(0.65f, 0.95f, 0.70f);
+        private static readonly Color PanelColor = Color.white;
+        private static readonly Color CardColor = Color.white;
+        private static readonly Color ButtonColor = PaperUITheme.Yellow;
+        private static readonly Color ButtonColorServe = PaperUITheme.Yellow;
+        private static readonly Color ButtonColorNeutral = PaperUITheme.Yellow;
+        private static readonly Color ButtonColorDanger = PaperUITheme.Yellow;
+        private static readonly Color TextColor = PaperUITheme.Ink;
+        private static readonly Color TextMuted = PaperUITheme.Muted;
+        private static readonly Color TextMoney = PaperUITheme.Ink;
         private static readonly Color ProgressFillColor = new Color(0.36f, 0.78f, 0.48f, 1f);
 
         // Font sizes, tuned for Chinese glyphs which read smaller than Latin at the same size.
@@ -86,6 +86,7 @@ namespace Kitchen.EditorTools
             BuildProgressPanel(canvasGo.transform);
             BuildNotificationPanel(canvasGo.transform);
             BuildLevelClearPanel(canvasGo.transform);
+            BuildPaperPresentation(canvasGo);
 
             // Second pass: the font is written through the serialised field so it is guaranteed to
             // be the one saved with the scene. Doing this while each label is created is not enough,
@@ -142,17 +143,16 @@ namespace Kitchen.EditorTools
             infoElement.flexibleWidth = 1f;
 
             // Row one: money on the left, the current mode taking the rest of the width.
-            Text(statusRow, "MoneyText", "金钱 0", FontHuge, TextMoney, TextAlignmentOptions.MidlineLeft, 240f);
             Text(statusRow, "ModeText", "普通模式", FontBody, TextColor, TextAlignmentOptions.MidlineLeft, 0f);
+            Text(statusRow, "OrderCountText", "完成 0 / 失败 0", FontSmall, TextMuted, TextAlignmentOptions.MidlineRight, 230f);
+            Text(statusRow, "TimeText", "00:00", FontBody, TextColor, TextAlignmentOptions.MidlineRight, 100f);
+            Text(statusRow, "UiScaleText", "100%", FontSmall, TextMuted, TextAlignmentOptions.MidlineRight, 70f);
+            SmallButton(statusRow, "UiScaleDownButton", "UiScaleDownButtonLabel", "−", ButtonColorNeutral);
+            SmallButton(statusRow, "UiScaleUpButton", "UiScaleUpButtonLabel", "+", ButtonColorNeutral);
 
             // Row two: the kitchen stock gets the whole row so a long ingredient list never has to
             // compete for space with the clock.
-            Text(infoRow, "InventoryText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f);
-            Text(infoRow, "OrderCountText", "完成 0 / 失败 0", FontSmall, TextMuted, TextAlignmentOptions.MidlineRight, 300f);
-            Text(infoRow, "TimeText", "00:00", FontBody, TextColor, TextAlignmentOptions.MidlineRight, 140f);
-            Text(infoRow, "UiScaleText", "100%", FontSmall, TextMuted, TextAlignmentOptions.MidlineRight, 90f);
-            SmallButton(infoRow, "UiScaleDownButton", "UiScaleDownButtonLabel", "−", ButtonColorNeutral);
-            SmallButton(infoRow, "UiScaleUpButton", "UiScaleUpButtonLabel", "+", ButtonColorNeutral);
+            Text(infoRow, "InventoryText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 30f, true);
         }
 
         private static void BuildCookerShopPanel(Transform canvas)
@@ -165,15 +165,13 @@ namespace Kitchen.EditorTools
 
             RectTransform content = VerticalGroup(panel, "ShopContent", 12f, TextAlignmentOptions.TopLeft, 24f);
 
-            Text(content, "ShopTitleText", "厨具商店", FontTitle, TextColor, TextAlignmentOptions.MidlineLeft, 0f, 46f);
-
             for (int i = 0; i < 4; i++)
             {
                 string name = $"CookerButton{i}";
-                Button(content, name, $"{name}Label", "-", new Vector2(0f, 88f), ButtonColor, FontBody);
+                Button(content, name, $"{name}Label", "-", new Vector2(0f, 78f), ButtonColor, FontBody);
             }
 
-            Text(content, "BuildHintText", "点击按钮购买厨具，再点击空地放置", FontSmall, TextMuted,
+            Text(content, "BuildHintText", "先购买厨具，再点击空地放置", FontSmall, TextMuted,
                 TextAlignmentOptions.TopLeft, 0f, 68f, true);
         }
 
@@ -185,16 +183,16 @@ namespace Kitchen.EditorTools
             panel.pivot = new Vector2(1f, 1f);
             panel.sizeDelta = new Vector2(680f, 430f);
 
-            RectTransform content = VerticalGroup(panel, "OrderContent", 10f, TextAlignmentOptions.TopLeft, 22f);
+            RectTransform content = VerticalGroup(panel, "OrderContent", 8f, TextAlignmentOptions.TopLeft, 22f);
 
-            Text(content, "OrderTitleText", "订单", FontTitle, TextColor, TextAlignmentOptions.MidlineLeft, 0f, 44f);
-            Text(content, "OrderRequirementText", "-", FontBody, TextColor, TextAlignmentOptions.TopLeft, 0f, 96f);
-            Text(content, "OrderTimerText", "-", FontBody, new Color(1f, 0.85f, 0.5f), TextAlignmentOptions.MidlineLeft, 0f, 40f);
-            Text(content, "OrderStateText", "-", FontBody, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 38f);
+            Text(content, "OrderTitleText", "订单", FontTitle, TextColor, TextAlignmentOptions.MidlineLeft, 0f, 36f);
+            Text(content, "OrderRequirementText", "-", FontBody, TextColor, TextAlignmentOptions.TopLeft, 0f, 60f, true);
+            Text(content, "OrderTimerText", "-", FontBody, PaperUITheme.TitleInk, TextAlignmentOptions.MidlineLeft, 0f, 32f);
+            Text(content, "OrderStateText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 28f);
 
-            Button(content, "SubmitOrderButton", "SubmitOrderButtonLabel", "上菜", new Vector2(0f, 76f), ButtonColorServe, FontTitle);
-            Text(content, "OrderHintText", "上菜需要成品与干净盘子各一份，成功后两者都会被扣除", FontSmall, TextMuted,
-                TextAlignmentOptions.TopLeft, 0f, 84f, true);
+            Button(content, "SubmitOrderButton", "SubmitOrderButtonLabel", "上菜", new Vector2(0f, 60f), ButtonColorServe, FontBody);
+            Text(content, "OrderHintText", "上菜消耗：成品与干净盘子各一份", FontSmall, TextMuted,
+                TextAlignmentOptions.TopLeft, 0f, 56f, true);
         }
 
         private static void BuildSelectionPanel(Transform canvas)
@@ -207,18 +205,23 @@ namespace Kitchen.EditorTools
 
             RectTransform content = VerticalGroup(panel, "SelectionContent", 10f, TextAlignmentOptions.TopLeft, 22f);
 
-            Text(content, "SelectionTitleText", "选中信息", FontBody, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 34f);
-
             RectTransform staff = CardColumn(content, "StaffSection", 112f);
             Text(staff, "StaffNameText", "厨师", FontBody, TextColor, TextAlignmentOptions.MidlineLeft, 0f, 30f);
             Text(staff, "StaffPositionText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 26f);
             Text(staff, "StaffHintText", "-", FontSmall, TextMuted, TextAlignmentOptions.TopLeft, 0f, 42f, true);
 
-            RectTransform cooker = CardColumn(content, "CookerSection", 112f);
+            RectTransform cooker = CardColumn(content, "CookerSection", 396f);
             Text(cooker, "CookerNameText", "厨具", FontBody, TextColor, TextAlignmentOptions.MidlineLeft, 0f, 30f);
-            Text(cooker, "CookerStateText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 26f);
-            Text(cooker, "CookerPositionText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 26f);
-            Button(cooker, "RecipeButton", "RecipeButtonLabel", "加工：自动", new Vector2(0f, 36f), ButtonColorNeutral, FontSmall);
+            Text(cooker, "CookerStateText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 48f, true);
+            Text(cooker, "CookerPositionText", "-", FontSmall, TextMuted, TextAlignmentOptions.MidlineLeft, 0f, 48f, true);
+            Text(cooker, "CookerInputText", "投入：-", FontSmall, TextMuted, TextAlignmentOptions.TopLeft, 0f, 48f, true);
+            Text(cooker, "CookerOutputText", "产出：-", FontSmall, TextMuted, TextAlignmentOptions.TopLeft, 0f, 48f, true);
+            Button(cooker, "RecipeButton", "RecipeButtonLabel", "加工：自动", new Vector2(0f, 44f), ButtonColorNeutral, FontSmall);
+            RectTransform actions = HorizontalGroup(cooker, "CookerActions", 8f, TextAlignmentOptions.Center);
+            actions.gameObject.AddComponent<LayoutElement>().preferredHeight = 46f;
+            Button(actions, "MoveCookerButton", "MoveCookerButtonLabel", "移动", new Vector2(0f, 46f), ButtonColor, FontSmall);
+            Button(actions, "CollectButton", "CollectButtonLabel", "收取", new Vector2(0f, 46f), ButtonColor, FontSmall);
+            Button(actions, "SellCookerButton", "SellCookerButtonLabel", "出售", new Vector2(0f, 46f), ButtonColorDanger, FontSmall);
         }
 
         private static void BuildProgressPanel(Transform canvas)
@@ -248,6 +251,112 @@ namespace Kitchen.EditorTools
             RectTransform content = HorizontalGroup(panel, "NotificationContent", 0f, TextAlignmentOptions.Center);
             Text(content, "NotificationText", "-", FontBody, TextColor, TextAlignmentOptions.Center, 940f, 56f);
             panel.gameObject.SetActive(false);
+        }
+
+        private static void BuildPaperPresentation(GameObject canvas)
+        {
+            foreach (Image image in canvas.GetComponentsInChildren<Image>(true))
+            {
+                if (image.name == "LevelClearPanel" || image.name == "ProgressFill" ||
+                    image.name == "Visual" || image.name == "Face" || image.GetComponent<Button>() != null) continue;
+                PaperUITheme.Surface(image.gameObject, image.name == "ProgressBar"
+                    ? new Color32(237, 237, 231, 255) : Color.white);
+            }
+
+            RectTransform top = Find<RectTransform>(canvas, "TopBar");
+            SetPanelRect(top, new Vector2(0f, 1f), new Vector2(300f, -64f), new Vector2(1588f, 140f));
+            VerticalLayoutGroup topColumn = top.GetComponent<VerticalLayoutGroup>();
+            topColumn.padding = new RectOffset(24, 24, 40, 16);
+            topColumn.spacing = 8f;
+            top.Find("StatusGroup").GetComponent<HorizontalLayoutGroup>().spacing = 16f;
+            PaperUITheme.Title(top, "正在营业", defaultFont, 230f);
+            top.Find("TitleTab").gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+
+            RectTransform money = PaperUITheme.Rect(canvas.transform, "MoneyPanel", new Vector2(220f, 140f), new Vector2(32f, -64f));
+            PaperUITheme.Surface(money.gameObject, Color.white);
+            PaperUITheme.Title(money, "金币", defaultFont, 126f);
+            TMP_Text amount = PaperUITheme.Label(money, "MoneyText", "0", defaultFont, 46f,
+                new Vector2(180f, 76f), new Vector2(22f, -45f));
+            amount.enableAutoSizing = true;
+            amount.fontSizeMin = 26f;
+            amount.fontSizeMax = 46f;
+            amount.gameObject.AddComponent<PaperMoneyFeedback>().Configure(amount.rectTransform);
+
+            RectTransform shop = Find<RectTransform>(canvas, "CookerShopPanel");
+            SetPanelRect(shop, new Vector2(0f, 1f), new Vector2(32f, -270f), new Vector2(360f, 520f));
+            InsetContent(shop.Find("ShopContent") as RectTransform, 24f, 48f, 24f);
+            shop.gameObject.AddComponent<PaperShopLayout>().Configure(shop.Find("ShopContent") as RectTransform);
+            PaperUITheme.Title(shop, "厨具商店", defaultFont);
+
+            RectTransform order = Find<RectTransform>(canvas, "OrderPanel");
+            SetPanelRect(order, new Vector2(1f, 1f), new Vector2(-32f, -270f), new Vector2(470f, 365f));
+            InsetContent(order.Find("OrderContent") as RectTransform, 24f, 44f, 18f);
+            PaperUITheme.Title(order, "今日订单", defaultFont);
+            PaperUITheme.AddPaperclip(order, defaultFont);
+            Find<LayoutElement>(canvas, "OrderHintText").minHeight = 32f;
+            Find<LayoutElement>(canvas, "OrderHintText").preferredHeight = 32f;
+
+            RectTransform selection = Find<RectTransform>(canvas, "SelectionPanel");
+            SetPanelRect(selection, new Vector2(1f, 1f), new Vector2(-32f, -680f), new Vector2(470f, 240f));
+            RectTransform content = selection.Find("SelectionContent") as RectTransform;
+            RectTransform viewport = PaperUITheme.Rect(selection, "Viewport", Vector2.zero, Vector2.zero);
+            viewport.anchorMin = Vector2.zero;
+            viewport.anchorMax = Vector2.one;
+            viewport.offsetMin = new Vector2(18f, 16f);
+            viewport.offsetMax = new Vector2(-18f, -42f);
+            viewport.gameObject.AddComponent<RectMask2D>();
+            Image scrollHit = viewport.gameObject.AddComponent<Image>();
+            scrollHit.color = Color.clear;
+            content.SetParent(viewport, false);
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = Vector2.one;
+            content.pivot = new Vector2(0.5f, 1f);
+            content.offsetMin = Vector2.zero;
+            content.offsetMax = Vector2.zero;
+            ContentSizeFitter fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            ScrollRect scroll = selection.gameObject.AddComponent<ScrollRect>();
+            scroll.viewport = viewport;
+            scroll.content = content;
+            scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 32f;
+            PaperUITheme.Title(selection, "选中信息 · 滚动查看", defaultFont, 332f);
+
+            RectTransform work = Find<RectTransform>(canvas, "RecipeProgressPanel");
+            SetPanelRect(work, Vector2.zero, new Vector2(32f, 24f), new Vector2(1856f, 112f));
+            InsetContent(work.Find("ProgressContent") as RectTransform, 24f, 12f, 12f);
+            Find<LayoutElement>(canvas, "ProgressTitleText").preferredHeight = 30f;
+            Find<LayoutElement>(canvas, "ProgressTitleText").minHeight = 30f;
+            Find<LayoutElement>(canvas, "ProgressDetailText").preferredHeight = 26f;
+            Find<LayoutElement>(canvas, "ProgressDetailText").minHeight = 26f;
+            RectTransform notice = Find<RectTransform>(canvas, "NotificationPanel");
+            SetPanelRect(notice, new Vector2(0.5f, 0f), new Vector2(-40f, 158f), new Vector2(900f, 68f));
+            notice.GetComponent<Image>().raycastTarget = false;
+            RectTransform noticeContent = notice.Find("NotificationContent") as RectTransform;
+            noticeContent.anchorMin = Vector2.zero;
+            noticeContent.anchorMax = Vector2.one;
+            noticeContent.offsetMin = new Vector2(20f, 8f);
+            noticeContent.offsetMax = new Vector2(-20f, -8f);
+            LayoutElement noticeText = Find<LayoutElement>(canvas, "NotificationText");
+            noticeText.minWidth = 0f;
+            noticeText.preferredWidth = 0f;
+            noticeText.flexibleWidth = 1f;
+            canvas.AddComponent<PaperHudLayout>().Configure(new[] { top, money, shop, order, selection, work, notice }, top, work);
+        }
+
+        private static void SetPanelRect(RectTransform rect, Vector2 anchor, Vector2 position, Vector2 size)
+        {
+            rect.anchorMin = rect.anchorMax = anchor;
+            rect.pivot = anchor;
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+        }
+
+        private static void InsetContent(RectTransform rect, float sides, float top, float bottom)
+        {
+            rect.offsetMin = new Vector2(sides, bottom);
+            rect.offsetMax = new Vector2(-sides, -top);
         }
 
         // ------------------------------------------------------------------ level clear
@@ -283,7 +392,7 @@ namespace Kitchen.EditorTools
             cardRect.sizeDelta = new Vector2(820f, 460f);
 
             Image cardImage = card.AddComponent<Image>();
-            cardImage.color = new Color(0.10f, 0.12f, 0.16f, 0.98f);
+            cardImage.color = Color.white;
 
             RectTransform column = VerticalGroup(cardRect, "LevelClearColumn", 18f, TextAlignmentOptions.Center, 34);
 
@@ -449,6 +558,9 @@ namespace Kitchen.EditorTools
             text.alignment = alignment;
             text.enableWordWrapping = wrap;
             text.overflowMode = TextOverflowModes.Overflow;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = FontSmall;
+            text.fontSizeMax = fontSize;
             text.raycastTarget = false;
 
             LayoutElement element = go.AddComponent<LayoutElement>();
@@ -509,7 +621,10 @@ namespace Kitchen.EditorTools
             button.colors = colors;
 
             RectTransform labelRect = VerticalGroup(rect, $"{labelName}Holder", 0f, TextAlignmentOptions.Center, 6);
-            Text(labelRect, labelName, label, fontSize, new Color(0.97f, 0.98f, 1f), TextAlignmentOptions.Center);
+            labelRect.GetComponent<VerticalLayoutGroup>().childForceExpandHeight = true;
+            labelRect.GetComponent<VerticalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
+            Text(labelRect, labelName, label, fontSize, TextColor, TextAlignmentOptions.Center, 0f, 0f, true);
+            PaperUITheme.StyleButton(button);
             return button;
         }
 
@@ -545,6 +660,7 @@ namespace Kitchen.EditorTools
             rect.SetParent(parent, false);
 
             Image track = go.AddComponent<Image>();
+            track.pixelsPerUnitMultiplier = 4f;
             track.color = new Color(0.18f, 0.20f, 0.24f);
             track.raycastTarget = false;
 
@@ -557,16 +673,20 @@ namespace Kitchen.EditorTools
             fillRect.SetParent(rect, false);
             fillRect.anchorMin = Vector2.zero;
             fillRect.anchorMax = Vector2.one;
-            fillRect.offsetMin = new Vector2(3f, 3f);
-            fillRect.offsetMax = new Vector2(-3f, -3f);
+            fillRect.offsetMin = new Vector2(0f, 3f);
+            fillRect.offsetMax = new Vector2(0f, -3f);
 
             Image fill = fillGo.AddComponent<Image>();
+            fill.sprite = PaperUITheme.Rounded;
             fill.color = fillColor;
-            fill.type = Image.Type.Filled;
+            fill.type = Image.Type.Sliced;
+            fill.pixelsPerUnitMultiplier = 4f;
             fill.fillMethod = Image.FillMethod.Horizontal;
             fill.fillOrigin = 0;
             fill.fillAmount = 0f;
             fill.raycastTarget = false;
+            fill.enabled = false;
+            fillGo.AddComponent<PaperProgressFill>();
 
             return fill;
         }

@@ -454,7 +454,8 @@ namespace Kitchen.EditorTools
                     continue;
                 }
 
-                Rect firstRect = ToCanvasRect(first, canvas);
+                Rect firstRect = VisibleLabelRect(first, canvas);
+                if (firstRect.width <= 0f || firstRect.height <= 0f) continue;
                 measured++;
 
                 for (int b = a + 1; b < labels.Length; b++)
@@ -471,8 +472,8 @@ namespace Kitchen.EditorTools
                         continue;
                     }
 
-                    Rect secondRect = ToCanvasRect(second, canvas);
-                    if (firstRect.Overlaps(secondRect, true))
+                    Rect secondRect = VisibleLabelRect(second, canvas);
+                    if (secondRect.width > 0f && secondRect.height > 0f && firstRect.Overlaps(secondRect, true))
                     {
                         overlaps.Add($"{labels[a].name} overlaps {labels[b].name}");
                     }
@@ -492,6 +493,22 @@ namespace Kitchen.EditorTools
         /// height or hung off the top edge passed it: nothing overlapped because nothing was there. That
         /// is how the top bar lost its raw material readout off the top of the screen.
         /// </summary>
+        private static Rect VisibleLabelRect(RectTransform rect, Canvas canvas)
+        {
+            Rect visible = ToCanvasRect(rect, canvas);
+            foreach (RectMask2D mask in rect.GetComponentsInParent<RectMask2D>())
+            {
+                if (!mask.isActiveAndEnabled) continue;
+                Rect clip = ToCanvasRect(mask.rectTransform, canvas);
+                float left = Mathf.Max(visible.xMin, clip.xMin);
+                float bottom = Mathf.Max(visible.yMin, clip.yMin);
+                float right = Mathf.Min(visible.xMax, clip.xMax);
+                float top = Mathf.Min(visible.yMax, clip.yMax);
+                visible = new Rect(left, bottom, Mathf.Max(0f, right - left), Mathf.Max(0f, top - bottom));
+            }
+            return visible;
+        }
+
         private static void ExpectPanelsInsideCanvas(string[] panelNames, Canvas canvas, RectTransform canvasRect)
         {
             Rect bounds = canvasRect.rect;
@@ -559,6 +576,8 @@ namespace Kitchen.EditorTools
         /// </summary>
         private static void ForceLayout(RectTransform root)
         {
+            Canvas.ForceUpdateCanvases();
+            root.GetComponent<Kitchen.UI.PaperHudLayout>()?.RefreshLayout();
             RectTransform[] all = root.GetComponentsInChildren<RectTransform>(true);
 
             // Sorting by depth puts parents before children, so a parent group sizes itself using the

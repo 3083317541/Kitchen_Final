@@ -124,6 +124,7 @@ namespace Kitchen.UI
         public void Initialize(GameRuntime gameRuntime)
         {
             runtime = gameRuntime;
+            if (moneyText != null) moneyText.GetComponent<PaperMoneyFeedback>()?.ResetValue();
 
             if (runtime != null)
             {
@@ -287,11 +288,13 @@ namespace Kitchen.UI
                 if (i < catalogue.Count && catalogue[i] != null)
                 {
                     CookerDefinition definition = catalogue[i];
-                    label.text = $"Buy {definition.DisplayName}\n{definition.Price}";
+                    label.text = $"{definition.DisplayName}　{definition.Price} 金币";
+                    if (i < cookerButtons.Length && cookerButtons[i] != null) cookerButtons[i].gameObject.SetActive(true);
                 }
                 else
                 {
                     label.text = "-";
+                    if (i < cookerButtons.Length && cookerButtons[i] != null) cookerButtons[i].gameObject.SetActive(false);
                 }
             }
         }
@@ -601,13 +604,13 @@ namespace Kitchen.UI
             switch (kind)
             {
                 case MessageKind.Success:
-                    return new Color(0.55f, 0.95f, 0.62f);
+                    return new Color32(41, 113, 66, 255);
                 case MessageKind.Warning:
-                    return new Color(1f, 0.84f, 0.45f);
+                    return new Color32(132, 91, 19, 255);
                 case MessageKind.Error:
-                    return new Color(1f, 0.52f, 0.48f);
+                    return new Color32(176, 55, 48, 255);
                 default:
-                    return new Color(0.92f, 0.94f, 0.98f);
+                    return new Color32(27, 27, 27, 255);
             }
         }
 
@@ -642,7 +645,10 @@ namespace Kitchen.UI
         {
             if (moneyText != null)
             {
-                moneyText.text = $"金钱 {runtime.Money}";
+                if (!runtime.IsInitialized) return;
+                PaperMoneyFeedback feedback = moneyText.GetComponent<PaperMoneyFeedback>();
+                if (feedback != null) feedback.Display(runtime.Money);
+                else moneyText.text = $"金钱 {runtime.Money}";
             }
 
             if (modeText != null)

@@ -17,13 +17,14 @@ Heating runs unattended after preparation and requires a return visit to collect
 
 也可以直接打开 `Assets/_Game/Scenes/Kitchen.unity` 按 Play，此时会从当前关卡（默认第一关）开始。
 
-首次打开若 HUD 没有文字，执行菜单 **`Kitchen/6. Import TMP Essential Resources`**，再执行
-**`Kitchen/3. Generate Everything`**。生成器会自动从系统字体创建中文 HUD 字体。
+更新界面样式或修复 HUD 文字时，先停止 Play 并保存场景，再执行
+**`Kitchen/UI/Apply Paper UI (UI Only)`**。它只更新厨房与主菜单的 Canvas 和 UI 绑定，保留玩法、美术及关卡资产。
+首次缺少 TMP 基础资源时，先执行 **`Kitchen/6. Import TMP Essential Resources`**。
 
 > Open `Assets/_Game/Scenes/MainMenu.unity` and press Play, then click 开始游戏.
 > Opening `Kitchen.unity` directly also works and starts at the current campaign level.
-> If the HUD has no text on first open, run `Kitchen/6. Import TMP Essential Resources` then
-> `Kitchen/3. Generate Everything`.
+> To refresh the HUD, stop Play, save scene edits, and run `Kitchen/UI/Apply Paper UI (UI Only)`.
+> Import `Kitchen/6. Import TMP Essential Resources` first if the TMP essential resources are missing.
 
 ---
 

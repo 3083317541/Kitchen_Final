@@ -21,12 +21,12 @@ namespace Kitchen.EditorTools
         /// <summary>Name of the generated start scene.</summary>
         public const string SceneName = "MainMenu";
 
-        private static readonly Color BackgroundColor = new Color(0.05f, 0.06f, 0.09f, 1f);
-        private static readonly Color CardColor = new Color(0.10f, 0.12f, 0.16f, 0.98f);
-        private static readonly Color TitleColor = new Color(0.97f, 0.98f, 1f);
-        private static readonly Color BodyColor = new Color(0.72f, 0.76f, 0.84f);
-        private static readonly Color StartButtonColor = new Color(0.18f, 0.46f, 0.26f, 1f);
-        private static readonly Color QuitButtonColor = new Color(0.28f, 0.30f, 0.36f, 1f);
+        private static readonly Color BackgroundColor = new Color32(18, 18, 18, 255);
+        private static readonly Color CardColor = Color.white;
+        private static readonly Color TitleColor = PaperUITheme.Ink;
+        private static readonly Color BodyColor = PaperUITheme.Muted;
+        private static readonly Color StartButtonColor = PaperUITheme.Yellow;
+        private static readonly Color QuitButtonColor = PaperUITheme.Yellow;
 
         /// <summary>Builds the menu objects and returns the controller.</summary>
         public static MainMenuController Build(TMP_FontAsset fontAsset)
@@ -39,6 +39,14 @@ namespace Kitchen.EditorTools
             BuildContent(canvas.transform, controller, fontAsset);
 
             return controller;
+        }
+
+        public static void UpdateUI(MainMenuController controller, TMP_FontAsset fontAsset)
+        {
+            Transform oldCanvas = controller.transform.Find("MenuCanvas");
+            if (oldCanvas != null) Object.DestroyImmediate(oldCanvas.gameObject);
+            GameObject canvas = BuildCanvas(controller.transform, fontAsset);
+            BuildContent(canvas.transform, controller, fontAsset);
         }
 
         private static void BuildCamera(Transform parent)
@@ -94,6 +102,11 @@ namespace Kitchen.EditorTools
             Stretch(backdropRect);
             Image backImage = backdrop.AddComponent<Image>();
             backImage.color = BackgroundColor;
+            GameObject dots = CreateRect(backdrop.transform, "Dots");
+            Stretch(dots.GetComponent<RectTransform>());
+            PaperDotBackground pattern = dots.AddComponent<PaperDotBackground>();
+            pattern.color = new Color(1f, 1f, 1f, 0.12f);
+            pattern.raycastTarget = false;
 
             RectTransform card = CreateRect(canvas, "MenuCard").GetComponent<RectTransform>();
             card.anchorMin = new Vector2(0.5f, 0.5f);
@@ -102,6 +115,9 @@ namespace Kitchen.EditorTools
             card.sizeDelta = new Vector2(900f, 620f);
             Image cardImage = card.gameObject.AddComponent<Image>();
             cardImage.color = CardColor;
+            PaperUITheme.Surface(card.gameObject, CardColor);
+            PaperUITheme.Title(card, "正在营业", fontAsset, 240f);
+            PaperUITheme.AddPaperclip(card, fontAsset);
 
             RectTransform column = Column(card, "MenuColumn", 26f, 40f);
 
@@ -221,7 +237,12 @@ namespace Kitchen.EditorTools
             colors.pressedColor = new Color(0.84f, 0.84f, 0.84f, 1f);
             button.colors = colors;
 
-            Label(go.transform, labelName, label, 40f, fontAsset, TitleColor, height - 8f);
+            TMP_Text text = Label(go.transform, labelName, label, 40f, fontAsset, TitleColor, height - 8f);
+            RectTransform labelRect = text.rectTransform;
+            Stretch(labelRect);
+            labelRect.offsetMin = new Vector2(12f, 8f);
+            labelRect.offsetMax = new Vector2(-12f, -8f);
+            PaperUITheme.StyleButton(button);
             return button;
         }
 
