@@ -143,32 +143,43 @@ namespace Kitchen.EditorTools
 
         public static void AddPaperclip(Transform panel, TMP_FontAsset font)
         {
-            RectTransform hit = Rect(panel, "BreadPaperclip", new Vector2(64f, 82f), new Vector2(-94f, 47f));
+            RectTransform hit = Rect(panel, "BreadPaperclip", new Vector2(82f, 132f), new Vector2(-112f, 65f));
             hit.anchorMin = hit.anchorMax = new Vector2(1f, 1f);
             Image hitImage = hit.gameObject.AddComponent<Image>();
             hitImage.color = Color.clear;
-            RectTransform visual = Rect(hit, "Visual", new Vector2(64f, 82f), Vector2.zero);
-            RectTransform wire = Rect(visual, "ClipWire", new Vector2(28f, 55f), new Vector2(20f, -25f));
-            Surface(wire.gameObject, TitleInk).raycastTarget = false;
-            RectTransform hole = Rect(wire, "Opening", new Vector2(18f, 45f), new Vector2(5f, -5f));
-            Surface(hole.gameObject, Color.white).raycastTarget = false;
-            RectTransform bread = Rect(visual, "Toast", new Vector2(62f, 48f), Vector2.zero);
-            Surface(bread.gameObject, new Color32(211, 151, 73, 255)).raycastTarget = false;
-            RectTransform crumb = Rect(bread, "Crumb", new Vector2(52f, 38f), new Vector2(5f, -4f));
-            Surface(crumb.gameObject, new Color32(255, 228, 163, 255)).raycastTarget = false;
-            RectTransform eyes = Rect(crumb, "Eyes", new Vector2(30f, 16f), new Vector2(11f, -9f));
-            for (int index = 0; index < 2; index++)
-            {
-                RectTransform eye = Rect(eyes, "Eye" + index, new Vector2(5f, 7f), new Vector2(index * 24f, -3f));
-                Surface(eye.gameObject, Ink).raycastTarget = false;
-            }
-            RectTransform smile = Rect(crumb, "Smile", new Vector2(12f, 3f), new Vector2(20f, -26f));
-            Surface(smile.gameObject, Ink).raycastTarget = false;
+            RectTransform visual = Rect(hit, "Visual", new Vector2(82f, 132f), new Vector2(41f, -56f));
+            visual.pivot = new Vector2(0.5f, 0.57576f);
+            Image body = visual.gameObject.AddComponent<Image>();
+            body.sprite = ImportPaperclip("BreadPaperclip");
+            body.raycastTarget = false;
+            RectTransform eyes = Rect(visual, "Eyes", new Vector2(41f, 15.4f), new Vector2(41f, -35.1f));
+            eyes.pivot = new Vector2(0.5f, 0.5f);
+            Image eyeImage = eyes.gameObject.AddComponent<Image>();
+            eyeImage.sprite = ImportPaperclip("BreadPaperclipEyes");
+            eyeImage.raycastTarget = false;
             RectTransform bubble = Rect(panel, "PaperclipBubble", new Vector2(330f, 54f), new Vector2(-346f, -12f));
             Surface(bubble.gameObject, Yellow).raycastTarget = false;
             TMP_Text speech = Label(bubble, "Speech", "开工啦，厨师长！", font, 22f, new Vector2(302f, 46f), new Vector2(14f, -4f));
             hit.gameObject.AddComponent<PaperclipReaction>().Configure(visual, eyes, speech);
             bubble.gameObject.SetActive(false);
+        }
+
+        private static Sprite ImportPaperclip(string name)
+        {
+            string path = "Assets/_Game/Art/UI/" + name + ".png";
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null) throw new FileNotFoundException("Paperclip PNG is missing.", path);
+            if (importer.textureType != TextureImporterType.Sprite || importer.mipmapEnabled ||
+                importer.textureCompression != TextureImporterCompression.Uncompressed)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.mipmapEnabled = false;
+                importer.alphaIsTransparency = true;
+                importer.textureCompression = TextureImporterCompression.Uncompressed;
+                importer.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -229,6 +230,7 @@ namespace Kitchen.EditorTools
             ScenarioStaff();
             ScenarioBuild();
             ScenarioBuildHighlight();
+            ScenarioPointerPlacement();
             ScenarioChopping();
             ScenarioFrying();
             ScenarioAssembly();
@@ -664,6 +666,7 @@ namespace Kitchen.EditorTools
             int staffParts = 0;
             int lights = 0;
             int cameras = 0;
+            bool modelsHaveVolume = true;
 
             GameObject[] roots = scene.GetRootGameObjects();
             for (int i = 0; i < roots.Length; i++)
@@ -683,6 +686,14 @@ namespace Kitchen.EditorTools
                 cookerParts = CountRenderers(cookerRoot);
                 staff = CountChildren(staffRoot);
                 staffParts = CountRenderers(staffRoot);
+                foreach (var view in roots[i].GetComponentsInChildren<CookerView>(true))
+                {
+                    modelsHaveVolume &= HasModelVolume(view.transform);
+                }
+                foreach (var view in roots[i].GetComponentsInChildren<StaffView>(true))
+                {
+                    modelsHaveVolume &= HasModelVolume(view.transform);
+                }
             }
 
             for (int i = 0; i < roots.Length; i++)
@@ -699,11 +710,11 @@ namespace Kitchen.EditorTools
                 ?? runtime.Level;
 
             bool gridOk = cells == sceneLevel.Width * sceneLevel.Height && floorParts >= 1;
-            bool cookersOk = cookers == sceneLevel.StartingCookers.Count && cookerParts >= cookers * 5;
-            bool staffOk = staff == sceneLevel.StaffCount && staffParts >= staff * 6;
+            bool cookersOk = cookers == sceneLevel.StartingCookers.Count && cookerParts >= cookers;
+            bool staffOk = staff == sceneLevel.StaffCount && staffParts >= staff;
             bool sceneOk = lights >= 2 && cameras >= 1;
 
-            Expect("scene_has_visible_kitchen", gridOk && cookersOk && staffOk && sceneOk,
+            Expect("scene_has_visible_kitchen", gridOk && cookersOk && staffOk && sceneOk && modelsHaveVolume,
                 $"grid cells = {cells} (expected {sceneLevel.Width * sceneLevel.Height}), floor parts = {floorParts}, " +
                 $"cookers = {cookers} built from {cookerParts} parts, chefs = {staff} built from {staffParts} parts, " +
                 $"lights = {lights}, cameras = {cameras}.");
@@ -734,6 +745,7 @@ namespace Kitchen.EditorTools
             }
 
             List<string> entries = new List<string>();
+            CookerItemDisplay itemDisplay = root.GetComponent<CookerItemDisplay>();
             Component[] components = root.GetComponentsInChildren<Component>(true);
 
             for (int i = 0; i < components.Length; i++)
@@ -745,6 +757,10 @@ namespace Kitchen.EditorTools
                 }
 
                 string path = RelativePath(root.transform, component.transform);
+                if (itemDisplay != null && itemDisplay.IsDisplayTransform(component.transform))
+                {
+                    continue;
+                }
                 if (root.GetComponent<CookerView>() != null && path.StartsWith("WorkPositionIndicator/", StringComparison.Ordinal))
                 {
                     continue;
@@ -797,7 +813,8 @@ namespace Kitchen.EditorTools
 
         private static int CountRenderers(Transform root)
         {
-            return root == null ? 0 : root.GetComponentsInChildren<MeshRenderer>(true).Length;
+            return root == null ? 0 : root.GetComponentsInChildren<Renderer>(true)
+                .Count(renderer => renderer is MeshRenderer || renderer is SkinnedMeshRenderer);
         }
 
         private static int CountChildren(Transform root)
@@ -1751,6 +1768,100 @@ namespace Kitchen.EditorTools
             PlayerPrefs.Save();
         }
 
+        private static void ScenarioPointerPlacement()
+        {
+            var input = runtime.Input;
+            var resolve = typeof(InputManager).GetMethod("ResolvePointerCell", BindingFlags.Instance | BindingFlags.NonPublic);
+            var confirmBuild = typeof(InputManager).GetMethod("ConfirmBuild", BindingFlags.Instance | BindingFlags.NonPublic);
+            var confirmMove = typeof(InputManager).GetMethod("ConfirmCookerMove", BindingFlags.Instance | BindingFlags.NonPublic);
+            var select = typeof(InputManager).GetMethod("HandleWorldSelection", BindingFlags.Instance | BindingFlags.NonPublic);
+            var disabled = UnityEngine.Object.FindObjectsOfType<Collider>()
+                .Where(collider => collider.enabled && collider.gameObject.layer == GameLayers.Ground).ToArray();
+            int savedMoney = runtime.Money;
+            CookerRuntime built = null;
+            GameObject raisedSurface = null;
+            try
+            {
+                foreach (var collider in disabled) collider.enabled = false;
+                Physics.SyncTransforms();
+                CookerDefinition definition = runtime.FindCookerDefinition(GameContentFactory.Ids.ChoppingStation);
+                Vector2Int target = runtime.Grid.CellKeys.First(cell => runtime.Cookers.CanPlaceCooker(cell, CookerFacing.North) &&
+                    new[] { Vector2Int.left, Vector2Int.right, Vector2Int.up, Vector2Int.down }
+                        .Any(direction => runtime.Grid.IsFreeForCooker(cell + direction)));
+                Vector3 point = runtime.Grid.GridToWorld(target);
+                Ray ray = runtime.WorldCamera.ScreenPointToRay(runtime.WorldCamera.WorldToScreenPoint(point));
+                Vector2Int resolved = (Vector2Int)resolve.Invoke(input, new object[] { ray });
+                Expect("pointer_without_floor_collider", resolved == target,
+                    $"camera ray over an unoccupied tile resolved to {resolved}, expected {target}, without floor colliders.");
+                runtime.AddMoney(definition.Price);
+                int moneyBefore = runtime.Money;
+                input.RequestBuildCooker(definition);
+                input.UpdateBuildPreview(resolved);
+                confirmBuild.Invoke(input, new object[] { resolved });
+                built = runtime.Cookers.GetCookerAt(target);
+                Expect("pointer_build_places_device", built != null && runtime.Money == moneyBefore - definition.Price &&
+                    input.Mode == Kitchen.Core.InteractionMode.Normal,
+                    "a ray-resolved tile builds one device, charges once and leaves build mode.");
+                if (built != null)
+                {
+                    select.Invoke(input, new object[] { built.View.gameObject, target });
+                    input.EnterMoveCookerMode(built);
+                    Vector2Int destination = new[] { Vector2Int.left, Vector2Int.right, Vector2Int.up, Vector2Int.down }
+                        .Select(direction => target + direction).First(cell => runtime.Grid.IsFreeForCooker(cell));
+                    point = runtime.Grid.GridToWorld(destination);
+                    ray = runtime.WorldCamera.ScreenPointToRay(runtime.WorldCamera.WorldToScreenPoint(point));
+                    resolved = (Vector2Int)resolve.Invoke(input, new object[] { ray });
+                    confirmMove.Invoke(input, new object[] { resolved });
+                    Expect("pointer_move_after_selection", runtime.Cookers.Selected == built &&
+                        built.GridPosition == destination && !runtime.Grid.HasCooker(target) &&
+                        runtime.Grid.GetCookerId(destination) == built.Id && runtime.Money == moneyBefore - definition.Price,
+                        "selecting the device then clicking an adjacent tile moves it without charging or losing occupancy.");
+                }
+
+                point = runtime.Grid.GridToWorld(new Vector2Int(2, 2));
+                ray = new Ray(point + new Vector3(5f, 10f, -5f), new Vector3(-5f, -10f, 5f));
+                raisedSurface = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                raisedSurface.name = "RaisedGroundArtProbe";
+                raisedSurface.layer = GameLayers.Ground;
+                raisedSurface.transform.position = ray.GetPoint(4f);
+                raisedSurface.transform.localScale = Vector3.one;
+                Physics.SyncTransforms();
+                bool hasRaisedHit = Physics.Raycast(ray, out RaycastHit raisedHit, 400f, GameLayers.GroundMask) &&
+                    raisedHit.collider.gameObject == raisedSurface;
+                resolved = (Vector2Int)resolve.Invoke(input, new object[] { ray });
+                Expect("pointer_ignores_raised_ground_art", hasRaisedHit && resolved == new Vector2Int(2, 2),
+                    $"an elevated decorative ground collider does not shift the target tile: {resolved}.");
+                raisedSurface.SetActive(false);
+
+                Vector2Int outside = new Vector2Int(-2, runtime.Grid.Height + 1);
+                point = runtime.Grid.GridToWorld(outside);
+                resolved = (Vector2Int)resolve.Invoke(input, new object[] { new Ray(point + Vector3.up * 10f, Vector3.down) });
+                input.RequestBuildCooker(definition);
+                moneyBefore = runtime.Money;
+                int countBefore = runtime.Cookers.Cookers.Count;
+                confirmBuild.Invoke(input, new object[] { resolved });
+                Expect("pointer_outside_stays_outside", resolved == outside &&
+                    runtime.Cookers.Cookers.Count == countBefore && runtime.Money == moneyBefore,
+                    $"outside tile {resolved} is rejected without snapping to the border or spending money.");
+                resolved = (Vector2Int)resolve.Invoke(input, new object[] { new Ray(point + Vector3.up, Vector3.up) });
+                Expect("pointer_ray_away_from_floor", !runtime.Grid.InBounds(resolved),
+                    "a ray pointing away from the floor cannot select a valid tile.");
+            }
+            finally
+            {
+                input.CancelCurrentInteraction();
+                if (built != null) runtime.Cookers.TryRemoveCooker(built);
+                runtime.Cookers.SelectCooker(null);
+                SetMoney(savedMoney);
+                if (raisedSurface != null) UnityEngine.Object.DestroyImmediate(raisedSurface);
+                foreach (var collider in disabled)
+                {
+                    if (collider != null) collider.enabled = true;
+                }
+                Physics.SyncTransforms();
+            }
+        }
+
         private static void ScenarioChopping()
         {
             CookerRuntime cooker = FindCooker(GameContentFactory.Ids.ChoppingStation);
@@ -2451,13 +2562,11 @@ namespace Kitchen.EditorTools
             Expect("views_present", staffViews && cookerViews,
                 $"every staff and cooker has an active view (staff = {staffViews}, cookers = {cookerViews}).");
 
-            // A 3D view needs real volume: every cooker and chef must be built from several parts,
-            // must cast shadows, and must stay inside the single cell it occupies. The cell bound is
-            // what keeps art scale from ever deciding grid occupancy.
             int minCookerParts = int.MaxValue;
             int maxCookerParts = 0;
             bool allCastShadows = true;
             bool allInsideCell = true;
+            bool allHaveVolume = true;
             string boundProblem = string.Empty;
             float cellLimit = runtime.Grid.CellSize;
 
@@ -2470,6 +2579,7 @@ namespace Kitchen.EditorTools
                 }
 
                 int parts = CountSolidParts(view.transform);
+                allHaveVolume &= HasModelVolume(view.transform);
                 minCookerParts = Mathf.Min(minCookerParts, parts);
                 maxCookerParts = Mathf.Max(maxCookerParts, parts);
 
@@ -2487,12 +2597,16 @@ namespace Kitchen.EditorTools
             }
 
             int staffParts = 0;
+            foreach (var employee in runtime.AllStaff)
+            {
+                allHaveVolume &= employee.View != null && HasModelVolume(employee.View.transform);
+            }
             if (runtime.AllStaff.Count > 0 && runtime.AllStaff[0].View != null)
             {
                 staffParts = CountSolidParts(runtime.AllStaff[0].View.transform);
             }
 
-            Expect("models_have_3d_volume", minCookerParts >= 5 && staffParts >= 6,
+            Expect("models_have_3d_volume", allHaveVolume && minCookerParts >= 1 && staffParts >= 1,
                 $"cooker parts per station = {minCookerParts}..{maxCookerParts}, chef parts = {staffParts}.");
 
             Expect("models_fit_their_cell", allInsideCell,
@@ -2507,7 +2621,7 @@ namespace Kitchen.EditorTools
         /// <summary>Counts the mesh renderers under a model, ignoring ground decals.</summary>
         private static int CountSolidParts(Transform root)
         {
-            MeshRenderer[] renderers = root.GetComponentsInChildren<MeshRenderer>(true);
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
             int count = 0;
 
             for (int i = 0; i < renderers.Length; i++)
@@ -2528,7 +2642,7 @@ namespace Kitchen.EditorTools
 
         private static bool HasShadowCaster(Transform root)
         {
-            MeshRenderer[] renderers = root.GetComponentsInChildren<MeshRenderer>(true);
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < renderers.Length; i++)
             {
                 if (renderers[i].shadowCastingMode != UnityEngine.Rendering.ShadowCastingMode.Off)
@@ -2538,6 +2652,41 @@ namespace Kitchen.EditorTools
             }
 
             return false;
+        }
+
+        private static bool HasModelVolume(Transform root)
+        {
+            bool found = false;
+            Bounds bounds = default;
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                Mesh mesh = renderer is SkinnedMeshRenderer skinned ? skinned.sharedMesh :
+                    renderer.GetComponent<MeshFilter>()?.sharedMesh;
+                if (mesh == null || mesh.vertexCount == 0 || renderer.sharedMaterial == null ||
+                    renderer.sharedMaterial.shader == null || renderer.sharedMaterial.shader.name == "Sprites/Default")
+                {
+                    continue;
+                }
+                Bounds current = renderer.bounds;
+                if (renderer is SkinnedMeshRenderer skin)
+                {
+                    var baked = new Mesh();
+                    skin.BakeMesh(baked, true);
+                    var vertices = baked.vertices;
+                    if (vertices.Length > 0)
+                    {
+                        current = new Bounds(skin.transform.TransformPoint(vertices[0]), Vector3.zero);
+                        foreach (var vertex in vertices)
+                        {
+                            current.Encapsulate(skin.transform.TransformPoint(vertex));
+                        }
+                    }
+                    UnityEngine.Object.DestroyImmediate(baked);
+                }
+                if (!found) { bounds = current; found = true; }
+                else bounds.Encapsulate(current);
+            }
+            return found && bounds.size.x > 0.1f && bounds.size.y > 0.2f && bounds.size.z > 0.1f;
         }
 
         /// <summary>

@@ -71,6 +71,27 @@ namespace Kitchen.Input
         /// <summary>Raised when the player wants the cooker details panel opened.</summary>
         public event Action<CookerRuntime> CookerContextRequested;
 
+        public event Action<CookerRuntime> CookerRecipeRequested;
+
+        public bool RecipeMenuOpen { get; private set; }
+        private int recipeCloseFrame = -1;
+
+        public void SetRecipeMenuOpen(bool open)
+        {
+            if (RecipeMenuOpen && !open) recipeCloseFrame = Time.frameCount;
+            RecipeMenuOpen = open;
+            moveRepeatTimer = 0f;
+            if (open) { ClearCellHighlights(); preview?.Hide(); }
+        }
+
+        public void RequestCookerRecipe(GameObject hitObject)
+        {
+            if (mode != InteractionMode.Normal || PointerOverUI || RecipeMenuOpen) return;
+            CookerView view = hitObject != null ? hitObject.GetComponentInParent<CookerView>() : null;
+            if (view != null && view.Runtime != null && view.Runtime.IsPlaced)
+                CookerRecipeRequested?.Invoke(view.Runtime);
+        }
+
         public event Action<CookerRuntime> RotateCookerRequested;
 
         /// <summary>Raised when the player picked an ingredient in the selection mode.</summary>
@@ -94,7 +115,7 @@ namespace Kitchen.Input
 
         public ItemDefinition SelectedIngredient => selectedIngredient;
 
-        /// <summary>Cell under the pointer this frame, clamped into the grid.</summary>
+        /// <summary>Cell under the pointer this frame, including out-of-bounds positions.</summary>
         public Vector2Int HoveredCell { get; private set; }
 
         /// <summary>Selectable object under the pointer this frame, or null.</summary>
@@ -258,7 +279,8 @@ namespace Kitchen.Input
         /// <summary>Cancels whatever interaction is active. Safe to call from anywhere.</summary>
         public void CancelCurrentInteraction()
         {
-            bool hadSomething = mode != InteractionMode.Normal;
+            bool hadSomething = mode != InteractionMode.Normal || RecipeMenuOpen;
+            RecipeMenuOpen = false;
 
             ExitBuildMode();
             ExitMoveCookerMode();
@@ -283,6 +305,7 @@ namespace Kitchen.Input
         /// </summary>
         public void Tick(float deltaTime)
         {
+            if (recipeCloseFrame == Time.frameCount) return;
             if (worldCamera == null)
             {
                 worldCamera = Camera.main;
@@ -296,7 +319,8 @@ namespace Kitchen.Input
             PointerOverUI = IsPointerOverUIThisFrame();
 
             // 1. Cancellation always wins, in every mode.
-            if (UnityEngine.Input.GetKeyDown(cancelKey) || UnityEngine.Input.GetKeyDown(cancelMouseButton))
+            if (UnityEngine.Input.GetKeyDown(cancelKey) ||
+                (UnityEngine.Input.GetKeyDown(cancelMouseButton) && (mode != InteractionMode.Normal || RecipeMenuOpen)))
             {
                 CancelCurrentInteraction();
                 return;
@@ -307,6 +331,13 @@ namespace Kitchen.Input
 
             HoveredCell = cell;
             HoveredObject = hitObject;
+
+            if (RecipeMenuOpen) return;
+            if (UnityEngine.Input.GetKeyDown(cancelMouseButton))
+            {
+                RequestCookerRecipe(hitObject);
+                return;
+            }
 
             // 3. Keyboard movement, routed by the current mode.
             HandleMovementKeys(deltaTime);
@@ -396,35 +427,21 @@ namespace Kitchen.Input
                 hitObject = selectableHit.collider.gameObject;
             }
 
-            if (Physics.Raycast(ray, out RaycastHit groundHit, 400f, groundMask, QueryTriggerInteraction.Ignore))
+            cell = ResolvePointerCell(ray);
+        }
+
+        private Vector2Int ResolvePointerCell(Ray ray)
+        {
+            Runtime.GameRuntime runtime = ActiveRuntime;
+            if (runtime != null && runtime.Grid != null)
             {
-                Vector3 point = groundHit.point;
-                Vector2Int raw = WorldToGrid(point);
-                Vector2Int clamped = new Vector2Int(
-                    Mathf.Clamp(raw.x, 0, GridWidth() - 1),
-                    Mathf.Clamp(raw.y, 0, GridHeight() - 1));
-
-                bool insideRaw = raw.x >= 0 && raw.x < GridWidth() && raw.y >= 0 && raw.y < GridHeight();
-                cell = insideRaw ? raw : clamped;
-
-                if (!insideRaw)
-                {
-                    // Outside the floor: report an out of bounds cell so callers can refuse it.
-                    cell = raw;
-                }
+                Plane ground = new Plane(Vector3.up, new Vector3(0f, runtime.Grid.Math.GroundY, 0f));
+                return ground.Raycast(ray, out float distance)
+                    ? runtime.Grid.WorldToGrid(ray.GetPoint(distance)) : new Vector2Int(-1, -1);
             }
-        }
 
-        private int GridWidth()
-        {
-            Runtime.GameRuntime runtime = ActiveRuntime;
-            return runtime != null && runtime.Grid != null ? runtime.Grid.Width : 5;
-        }
-
-        private int GridHeight()
-        {
-            Runtime.GameRuntime runtime = ActiveRuntime;
-            return runtime != null && runtime.Grid != null ? runtime.Grid.Height : 5;
+            return Physics.Raycast(ray, out RaycastHit hit, 400f, groundMask, QueryTriggerInteraction.Ignore)
+                ? WorldToGrid(hit.point) : new Vector2Int(-1, -1);
         }
 
         private Vector2Int WorldToGrid(Vector3 world)

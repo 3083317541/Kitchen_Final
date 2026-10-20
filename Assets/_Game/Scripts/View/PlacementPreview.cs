@@ -27,8 +27,8 @@ namespace Kitchen.View
         [SerializeField] private float ghostFootprint = 1.75f;
 
         private Transform ghostRoot;
-        private Renderer ghostRenderer;
-        private GameObject spawnItemRoot;
+        private Renderer[] ghostRenderers;
+        private float visualHeight;
         private CookerDefinition currentDefinition;
         private bool visible;
         private WorkPositionIndicator workPositionIndicator;
@@ -84,36 +84,55 @@ namespace Kitchen.View
                 tint = new Color(definition.AccentColor.r, definition.AccentColor.g, definition.AccentColor.b, validColor.a);
             }
 
-            if (ghostPrefab != null)
+            Transform cookerVisual = definition != null && definition.ViewPrefab != null
+                ? definition.ViewPrefab.transform.Find("Visual") : null;
+            GameObject model = ghostPrefab != null ? ghostPrefab : cookerVisual != null ? cookerVisual.gameObject : null;
+            if (model != null)
             {
-                GameObject instance = Instantiate(ghostPrefab, ghostRoot);
+                GameObject instance = Instantiate(model, ghostRoot);
                 instance.name = "ArtGhost";
-                ghostRenderer = instance.GetComponentInChildren<Renderer>();
-                return;
+                instance.SetActive(true);
+                foreach (var collider in instance.GetComponentsInChildren<Collider>(true))
+                {
+                    collider.enabled = false;
+                    if (Application.isPlaying) Destroy(collider);
+                    else DestroyImmediate(collider);
+                }
+                foreach (var behaviour in instance.GetComponentsInChildren<Behaviour>(true))
+                {
+                    behaviour.enabled = false;
+                }
+                foreach (var body in instance.GetComponentsInChildren<Rigidbody>(true))
+                {
+                    body.isKinematic = true;
+                    body.detectCollisions = false;
+                }
+                foreach (var renderer in instance.GetComponentsInChildren<Renderer>(true))
+                {
+                    height = Mathf.Max(height, renderer.bounds.max.y - ghostRoot.position.y);
+                }
             }
-
-            GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            box.name = "GhostBox";
-            box.transform.SetParent(ghostRoot, false);
-            box.transform.localPosition = new Vector3(0f, height * 0.5f + 0.03f, 0f);
-            box.transform.localScale = new Vector3(footprint, height, footprint);
-            Object.Destroy(box.GetComponent<Collider>());
-
-            ghostRenderer = box.GetComponent<Renderer>();
-            if (ghostRenderer != null)
+            else
             {
-                ghostRenderer.sharedMaterial = validMaterial != null
-                    ? validMaterial
-                    : Whitebox.TransparentMaterial(tint, "GhostValid");
+                GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                box.name = "GhostBox";
+                box.transform.SetParent(ghostRoot, false);
+                box.transform.localPosition = new Vector3(0f, height * 0.5f + 0.03f, 0f);
+                box.transform.localScale = new Vector3(footprint, height, footprint);
+                var collider = box.GetComponent<Collider>();
+                collider.enabled = false;
+                if (Application.isPlaying) Destroy(collider);
+                else DestroyImmediate(collider);
             }
+            visualHeight = height;
 
             // A footprint outline makes the occupied cell unmistakable.
             GameObject outline = Whitebox.Quad("GhostPad", ghostRoot, new Vector3(0f, 0.025f, 0f), 1f, tint, gameObject.layer);
             outline.transform.localScale = new Vector3(1.86f, 1.86f, 1f);
 
-            spawnItemRoot = new GameObject("GhostItems");
-            spawnItemRoot.transform.SetParent(ghostRoot, false);
-            spawnItemRoot.transform.localPosition = new Vector3(0f, height + 0.08f, 0f);
+            ghostRenderers = ghostRoot.GetComponentsInChildren<Renderer>(true);
+            SetValid(true, Cell);
+            GameLayers.SetLayerRecursively(ghostRoot.gameObject, GameLayers.Ground);
         }
 
         /// <summary>Moves the ghost to a world position.</summary>
@@ -132,7 +151,14 @@ namespace Kitchen.View
 
             if (workPositionIndicator == null)
             {
-                workPositionIndicator = new WorkPositionIndicator(transform, cellSize, ghostHeight + 0.18f);
+                workPositionIndicator = new WorkPositionIndicator(transform, cellSize, visualHeight + 0.18f);
+            }
+            Transform arrow = transform.Find("WorkPositionIndicator/FacingArrow");
+            if (arrow != null)
+            {
+                Vector3 position = arrow.localPosition;
+                position.y = visualHeight + 0.18f;
+                arrow.localPosition = position;
             }
 
             workPositionIndicator.SetVisible(true);
@@ -145,7 +171,7 @@ namespace Kitchen.View
             IsValid = valid;
             Cell = cell;
 
-            if (ghostRenderer == null)
+            if (ghostRenderers == null)
             {
                 return;
             }
@@ -154,7 +180,12 @@ namespace Kitchen.View
                 ? (validMaterial != null ? validMaterial : Whitebox.TransparentMaterial(validColor, "GhostValid"))
                 : (invalidMaterial != null ? invalidMaterial : Whitebox.TransparentMaterial(invalidColor, "GhostInvalid"));
 
-            ghostRenderer.sharedMaterial = material;
+            foreach (var renderer in ghostRenderers)
+            {
+                var materials = renderer.sharedMaterials;
+                for (int index = 0; index < materials.Length; index++) materials[index] = material;
+                renderer.sharedMaterials = materials;
+            }
         }
 
         /// <summary>Hides the ghost.</summary>
@@ -177,6 +208,8 @@ namespace Kitchen.View
 
             if (Application.isPlaying)
             {
+                ghostRoot.name = "RetiredPlacementGhost";
+                ghostRoot.gameObject.SetActive(false);
                 Destroy(ghostRoot.gameObject);
             }
             else
@@ -185,13 +218,13 @@ namespace Kitchen.View
             }
 
             ghostRoot = null;
-            ghostRenderer = null;
-            spawnItemRoot = null;
+            ghostRenderers = null;
         }
 
         /// <summary>Destroys this preview.</summary>
         public void Dispose()
         {
+            Hide();
             DestroyGhost();
 
             if (Application.isPlaying)

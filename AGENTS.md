@@ -72,6 +72,7 @@
 - modelPrefab 不得指向包含该 View 的预制体自身，避免递归实例化。
 - 不要直接把原始 FBX 当作完整工作台；缺少约定层级可能触发白盒补建，造成模型叠加。
 - 保留交互层、选择反馈和必要碰撞体。美术偏移、旋转、缩放在 Visual 内处理，逻辑根物体保持格子对齐。
+- 鼠标网格落点由 InputManager 将相机射线投到 Grid.Math.GroundY 平面求得，不依赖地板或装饰碰撞体；真实越界仍应拒绝。美术替换后验收需覆盖相机射线到建造、选中后移动的输入链路。
 - 默认格子宽 2 单位，CookerView.MaxFootprint 为 1.8；检查占地、脚底、台面和视角遮挡。
 - 各包比例和原点不同，依据实际导入尺寸调整，不统一套用 100 倍缩放。
 - 当前 StaffView 只驱动 Animator 的 Selected 参数；走路、切菜、煎炒需补 Animator Controller 与状态连接。
@@ -152,6 +153,14 @@ plate-dinner 已盛有食物，plate-broken 是破盘子，均不应直接替代
 - 区分静态检查、导入成功、游戏内验收，只声明实际完成的验证。
 
 ## 本机历史资料
+
+- 2026-10-20 第二批：四台设备包装、对应建造预览和棋盘地砖已接入，切菜台柜体正面修正为与操作格 +Z 对齐。地板由 KitchenFloorView 按关卡尺寸自动铺设；GridView 已读取 LevelConfig.floorPrefab。说明见根目录 美术第二批替换与布景说明.md。
+- ArtShowcase.unity 是独立美术展示，不是正式关卡。正式静态布景建议放 World/ArtDressing，不放会被运行时移除的 Preview。厨房编辑态地面可用 Kitchen/Art/Refresh Floor Preview (Art Only) 刷新，支持撤销且不自动保存。
+- Kitchen/Art/Apply Workstations And Floor (Art Only) 会重建本批包装和地板材质，不作日常测试；手工打磨后避免覆盖。StageTwo 备份保留本批前预制体；四台设备与 Grid_Floor 原 GUID 不变。
+
+- 2026-10-20 已完成美术首批接入：Panda、Kenney 切菜台、番茄/番茄片；详见根目录 美术首批替换记录.md 与 Assets/ThirdParty/Sources.md。其余工作台、物品、幽灵、环境仍待后续阶段。此前“未导入原项目”的记录仅描述历史检查当时的状态。
+- 首批自动检查在独立完整工程副本中完成：规则 134/134、专项 16/16、两轮 Play 各 17/17；尚未宣称三关人工画面验收。原项目四个预制体 GUID 保留，白盒备份在 Assets/_Game/Art/Backups/StageOne。
+- Kitchen/Art/Apply Stage One (Art Only) 会重建首批包装内部结构及 Panda Controller，手工打磨后不要把它当普通测试。专项 KitchenArtStageOneVerifier.Run 会切换测试场景，仅用于独立验证副本。
 
 - 下载目录当时为 D:/Users/MangLF/Downloads，是重定向目录，找不到时需重新定位。
 - 审计目录：C:/Users/MangLF/.codex/tmp/kitchen_asset_audit_20261019/。

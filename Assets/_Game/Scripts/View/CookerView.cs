@@ -45,6 +45,7 @@ namespace Kitchen.View
         private bool isActive;
         private CookerDefinition definition;
         private WorkPositionIndicator workPositionIndicator;
+        private CookerItemDisplay itemDisplay;
 
         public bool HasWorkPositionIndicator => workPositionIndicator != null && workPositionIndicator.IsVisible;
 
@@ -121,6 +122,7 @@ namespace Kitchen.View
             }
 
             EnsureBuilt();
+            itemDisplay = GetComponent<CookerItemDisplay>();
             if (workPositionIndicator == null)
             {
                 float cellSize = runtime.Owner != null ? runtime.Owner.Grid.CellSize : 2f;
@@ -429,6 +431,7 @@ namespace Kitchen.View
         /// <summary>Refreshes the active / selected look from the runtime state.</summary>
         public void ApplyState()
         {
+            itemDisplay?.Refresh();
             bool active = Runtime != null && (Runtime.IsActive || Runtime.IsHeating);
             bool selected = isSelected;
 

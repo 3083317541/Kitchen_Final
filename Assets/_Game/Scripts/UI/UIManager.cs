@@ -74,6 +74,7 @@ namespace Kitchen.UI
         [SerializeField] private Button sellCookerButton;
 
         [Header("Recipe progress")]
+        [SerializeField] private KitchenMachineUI machineUI;
         [SerializeField] private GameObject progressPanel;
         [SerializeField] private TMP_Text progressTitleText;
         [SerializeField] private TMP_Text progressDetailText;
@@ -147,6 +148,7 @@ namespace Kitchen.UI
         public void BindInput(InputManager inputManager)
         {
             input = inputManager;
+            machineUI?.Initialize(runtime, inputManager);
 
             if (input != null)
             {
@@ -432,37 +434,7 @@ namespace Kitchen.UI
                 return;
             }
 
-            List<Kitchen.Data.RecipeDefinition> options =
-                runtime.Recipes.RecipesFor(cooker.Definition.Kind);
-
-            if (options.Count <= 1)
-            {
-                ShowNotification("这个厨具只有一种加工方式。", MessageKind.Info);
-                RefreshValues();
-                return;
-            }
-
-            // auto -> recipe 0 -> recipe 1 -> ... -> auto
-            int current = -1;
-            for (int i = 0; i < options.Count; i++)
-            {
-                if (options[i].Id == cooker.PreferredRecipeId)
-                {
-                    current = i;
-                    break;
-                }
-            }
-
-            current++;
-            cooker.PreferredRecipeId = current < options.Count ? options[current].Id : null;
-
-            ShowNotification(
-                current < options.Count
-                    ? $"加工方式：{options[current].DisplayName}"
-                    : "加工方式：自动",
-                MessageKind.Info);
-
-            RefreshValues();
+            machineUI?.OpenRecipes(cooker);
         }
 
         private void OnCollectClicked()
@@ -623,7 +595,7 @@ namespace Kitchen.UI
             SetPanelActive(orderPanel, true);
             SetPanelActive(cookerShopPanel, true);
             SetPanelActive(selectionPanel, true);
-            SetPanelActive(progressPanel, true);
+            SetPanelActive(progressPanel, false);
             RefreshValues();
         }
 
@@ -656,7 +628,7 @@ namespace Kitchen.UI
                 // The mode label reads the single source of truth for the interaction mode.
                 string hint = input != null && input.Mode != InteractionMode.Normal
                     ? "WASD 移动 / Esc 取消"
-                    : "左键选厨师，或购买厨具";
+                    : "左键选择 · 右键机器选加工";
                 modeText.text = $"{DescribeMode(input != null ? input.Mode : InteractionMode.Normal)} | {hint}";
             }
 

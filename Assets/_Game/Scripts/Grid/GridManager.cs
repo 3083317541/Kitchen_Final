@@ -95,10 +95,21 @@ namespace Kitchen.Grid
                 return;
             }
 
+            Transform preview = root.Find("Preview");
+            if (preview != null)
+            {
+                preview.gameObject.SetActive(false);
+                if (Application.isPlaying) Destroy(preview.gameObject);
+                else DestroyImmediate(preview.gameObject);
+            }
             if (view != null)
             {
                 view.Dispose();
-                view = null;            }
+                view.gameObject.SetActive(false);
+                if (Application.isPlaying) Destroy(view.gameObject);
+                else DestroyImmediate(view.gameObject);
+                view = null;
+            }
 
             view = ViewFactory.CreateGridView();
             if (view == null)

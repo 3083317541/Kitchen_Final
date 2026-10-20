@@ -20,6 +20,8 @@ namespace Kitchen.Recipes
 
         public IReadOnlyList<RecipeDefinition> Recipes => recipes;
 
+        public event System.Action<CookerRuntime, RecipeDefinition> Converted;
+
         /// <summary>Replaces the recipe catalogue with the one described by the level.</summary>
         public void ApplyLevel(LevelConfig level)
         {
@@ -315,6 +317,7 @@ namespace Kitchen.Recipes
             }
 
             producedStacks = produced;
+            Converted?.Invoke(cooker, recipe);
             return true;
         }
 

@@ -1,0 +1,25 @@
+fileFormatVersion: 2
+guid: f4781cb81a6482a4993c7f3ea64e9c15
+TextureImporter:
+  serializedVersion: 13
+  mipmaps:
+    enableMipMap: 0
+  textureType: 8
+  spriteMode: 1
+  alphaIsTransparency: 1
+  textureCompression: 0
+  spritePixelsToUnits: 100
+  spriteSheet:
+    serializedVersion: 2
+    sprites: []
+    outline: []
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    nameFileIdTable: {}

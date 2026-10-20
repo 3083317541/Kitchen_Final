@@ -44,6 +44,7 @@ namespace Kitchen.View
         private float cellSize = 2f;
         private Vector3 origin;
         private float groundHeight;
+        private Material artCellMaterial;
 
         /// <summary>Number of cell quads currently drawn.</summary>
         public int CellCount => cells.Count;
@@ -103,7 +104,7 @@ namespace Kitchen.View
 
             floorRoot = new GameObject("FloorMesh").transform;
             floorRoot.SetParent(transform, false);
-            BuildFloor();
+            BuildFloor(level);
 
             cellRoot = new GameObject("Cells").transform;
             cellRoot.SetParent(transform, false);
@@ -144,12 +145,12 @@ namespace Kitchen.View
             width = grid.Width;
             height = grid.Height;
             cellSize = grid.CellSize;
-            groundHeight = grid.GroundHeight;
+            groundHeight = grid.Math.GroundY;
             origin = grid.GridToWorld(Vector2Int.zero);
 
             floorRoot = new GameObject("FloorMesh").transform;
             floorRoot.SetParent(transform, false);
-            BuildFloor();
+            BuildFloor(config);
 
             cellRoot = new GameObject("Cells").transform;
             cellRoot.SetParent(transform, false);
@@ -180,12 +181,13 @@ namespace Kitchen.View
 
         private Material CellDefaultMaterial()
         {
-            return Whitebox.TransparentMaterial(cellColor, "Cell");
+            return artCellMaterial != null ? artCellMaterial : Whitebox.TransparentMaterial(cellColor, "Cell");
         }
 
-        private void BuildFloor()
+        private void BuildFloor(LevelConfig config)
         {
             int layer = GameLayers.Ground;
+            artCellMaterial = null;
 
             // The floor spans the whole map, so its centre is the midpoint of the first and last cell.
             Vector3 first = GridToWorldLocal(0, 0);
@@ -195,11 +197,18 @@ namespace Kitchen.View
                 groundHeight,
                 (first.z + last.z) * 0.5f);
 
-            if (floorPrefab != null)
+            GameObject selectedFloor = config.FloorPrefab != null ? config.FloorPrefab : floorPrefab;
+            if (selectedFloor != null)
             {
-                GameObject instance = Instantiate(floorPrefab, floorRoot);
+                GameObject instance = Instantiate(selectedFloor, floorRoot);
                 instance.name = "ArtFloor";
                 instance.transform.position = center;
+                var layout = instance.GetComponent<KitchenFloorView>();
+                if (layout != null)
+                {
+                    layout.Build(width, height, cellSize);
+                    artCellMaterial = layout.CellOverlayMaterial;
+                }
                 GameLayers.SetLayerRecursively(instance, layer);
                 return;
             }
@@ -354,6 +363,7 @@ namespace Kitchen.View
 
             if (Application.isPlaying)
             {
+                target.SetActive(false);
                 Destroy(target);
             }
             else

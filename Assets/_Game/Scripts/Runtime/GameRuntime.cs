@@ -246,6 +246,7 @@ namespace Kitchen.Runtime
             }
 
             ApplyLevelContent(Level);
+            gridManager?.BuildGrid(Level);
 
             // 4. World geometry.
             BuildWorld();
@@ -256,8 +257,6 @@ namespace Kitchen.Runtime
             }
 
             // 5. Grid, staff, cookers, stock.
-            gridManager?.BuildGrid(Level);
-
             if (gridManager != null && gridManager.CellCount == 0)
             {
                 Debug.LogError("[GameRuntime] The grid is empty; check the LevelConfig dimensions.");
@@ -596,6 +595,23 @@ namespace Kitchen.Runtime
             }
 
             return cookerManager != null && cookerManager.TryRemoveCooker(cooker);
+        }
+
+        public bool TrySetCookerRecipe(CookerRuntime cooker, string recipeId)
+        {
+            if (cooker == null || cooker.Owner != this || !cooker.IsPlaced || cooker.Definition == null || recipeManager == null)
+                return false;
+            string caption = "自动";
+            if (!string.IsNullOrEmpty(recipeId))
+            {
+                RecipeDefinition recipe = recipeManager.RecipesFor(cooker.Definition.Kind).Find(option => option.Id == recipeId);
+                if (recipe == null) return false;
+                caption = recipe.DisplayName;
+            }
+            cooker.PreferredRecipeId = string.IsNullOrEmpty(recipeId) ? null : recipeId;
+            Notify($"加工方式：{caption}" + (cooker.LockedRecipe != null ? "，当前批次完成后生效。" : "。"), MessageKind.Info);
+            uiManager?.RefreshValues();
+            return true;
         }
 
         /// <summary>Player asked to collect the produce sitting in a cooker.</summary>

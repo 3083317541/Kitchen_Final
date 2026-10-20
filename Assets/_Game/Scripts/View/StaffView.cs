@@ -117,10 +117,10 @@ namespace Kitchen.View
                 return;
             }
 
-            MeshRenderer[] renderers = visualRoot.GetComponentsInChildren<MeshRenderer>(true);
+            Renderer[] renderers = visualRoot.GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < renderers.Length; i++)
             {
-                MeshRenderer renderer = renderers[i];
+                Renderer renderer = renderers[i];
                 if (renderer == null)
                 {
                     continue;
@@ -188,7 +188,15 @@ namespace Kitchen.View
             // Both the freshly built and the adopted path need these.
             if (selectionRing == null)
             {
-                BuildSelectionRing();
+                Transform existingRing = visualRoot.Find("SelectionRing");
+                if (existingRing != null)
+                {
+                    selectionRing = existingRing.gameObject;
+                }
+                else
+                {
+                    BuildSelectionRing();
+                }
             }
 
             EnsureClickCollider();

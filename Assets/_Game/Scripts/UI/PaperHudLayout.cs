@@ -33,7 +33,7 @@ namespace Kitchen.UI
                 panels[index].anchoredPosition = positions[index] * fit;
             }
             topBar.sizeDelta = new Vector2(size.x / fit - 332f, 140f);
-            progress.sizeDelta = new Vector2(size.x / fit - 64f, 112f);
+            if (progress != null) progress.sizeDelta = new Vector2(size.x / fit - 64f, 112f);
         }
     }
 }

@@ -87,6 +87,7 @@ namespace Kitchen.EditorTools
             BuildNotificationPanel(canvasGo.transform);
             BuildLevelClearPanel(canvasGo.transform);
             BuildPaperPresentation(canvasGo);
+            canvasGo.AddComponent<KitchenMachineUI>().Configure(PaperUITheme.Rounded, fontAsset);
 
             // Second pass: the font is written through the serialised field so it is guaranteed to
             // be the one saved with the scene. Doing this while each label is created is not enough,
@@ -324,6 +325,8 @@ namespace Kitchen.EditorTools
             PaperUITheme.Title(selection, "选中信息 · 滚动查看", defaultFont, 332f);
 
             RectTransform work = Find<RectTransform>(canvas, "RecipeProgressPanel");
+            work.gameObject.SetActive(false);
+            Find<TMP_Text>(canvas, "ProgressDetailText").text = string.Empty;
             SetPanelRect(work, Vector2.zero, new Vector2(32f, 24f), new Vector2(1856f, 112f));
             InsetContent(work.Find("ProgressContent") as RectTransform, 24f, 12f, 12f);
             Find<LayoutElement>(canvas, "ProgressTitleText").preferredHeight = 30f;
@@ -331,7 +334,7 @@ namespace Kitchen.EditorTools
             Find<LayoutElement>(canvas, "ProgressDetailText").preferredHeight = 26f;
             Find<LayoutElement>(canvas, "ProgressDetailText").minHeight = 26f;
             RectTransform notice = Find<RectTransform>(canvas, "NotificationPanel");
-            SetPanelRect(notice, new Vector2(0.5f, 0f), new Vector2(-40f, 158f), new Vector2(900f, 68f));
+            SetPanelRect(notice, new Vector2(0.5f, 0f), new Vector2(-40f, 28f), new Vector2(900f, 68f));
             notice.GetComponent<Image>().raycastTarget = false;
             RectTransform noticeContent = notice.Find("NotificationContent") as RectTransform;
             noticeContent.anchorMin = Vector2.zero;
@@ -804,6 +807,7 @@ namespace Kitchen.EditorTools
             }
 
             SerializedObject so = new SerializedObject(ui);
+            Set(so, "machineUI", canvas.GetComponent<KitchenMachineUI>());
 
             Set(so, "moneyText", Find<TMP_Text>(canvas, "MoneyText"));
             Set(so, "modeText", Find<TMP_Text>(canvas, "ModeText"));
