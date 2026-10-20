@@ -17,12 +17,16 @@ namespace Kitchen.Inventory
         private readonly Dictionary<ItemDefinition, int> totals = new Dictionary<ItemDefinition, int>();
         private readonly Dictionary<ItemDefinition, int> reservations = new Dictionary<ItemDefinition, int>();
         private readonly List<ItemDefinition> knownItems = new List<ItemDefinition>();
+        private bool unlimitedRaw;
+
+        public bool IsUnlimited(ItemDefinition item) => unlimitedRaw && item != null && item.Category == ItemCategory.Raw;
 
         public IReadOnlyList<ItemDefinition> KnownItems => knownItems;
 
         /// <summary>Seeds the inventory from the level configuration.</summary>
         public void ApplyStartingInventory(LevelConfig level)
         {
+            unlimitedRaw = level != null && level.IsClassicMode;
             totals.Clear();
             reservations.Clear();
             knownItems.Clear();
@@ -65,6 +69,7 @@ namespace Kitchen.Inventory
         /// <summary>Total units held, ignoring reservations.</summary>
         public int TotalCount(ItemDefinition item)
         {
+            if (IsUnlimited(item)) return int.MaxValue;
             if (item == null)
             {
                 return 0;
@@ -76,6 +81,7 @@ namespace Kitchen.Inventory
         /// <summary>Units that are not reserved by a cooker and may therefore be moved elsewhere.</summary>
         public int AvailableCount(ItemDefinition item)
         {
+            if (IsUnlimited(item)) return int.MaxValue;
             if (item == null)
             {
                 return 0;
@@ -127,6 +133,11 @@ namespace Kitchen.Inventory
             for (int i = 0; i < knownItems.Count; i++)
             {
                 ItemDefinition item = knownItems[i];
+                if (IsUnlimited(item))
+                {
+                    builder.Append($"{item.DisplayName} ∞ | ");
+                    continue;
+                }
                 int total = TotalCount(item);
                 int reserved = ReservedCount(item);
                 if (total == 0 && reserved == 0 && item != null && item.Category == ItemCategory.Raw)
@@ -160,6 +171,7 @@ namespace Kitchen.Inventory
             }
 
             EnsureKnown(item);
+            if (IsUnlimited(item)) return;
             totals[item] = TotalCount(item) + count;
         }
 
@@ -190,7 +202,7 @@ namespace Kitchen.Inventory
                 return false;
             }
 
-            totals[item] = TotalCount(item) - count;
+            if (!IsUnlimited(item)) totals[item] = TotalCount(item) - count;
             return true;
         }
 
@@ -316,7 +328,7 @@ namespace Kitchen.Inventory
             }
 
             reservations[item] = reserved - count;
-            totals[item] = total - count;
+            if (!IsUnlimited(item)) totals[item] = total - count;
             return true;
         }
 

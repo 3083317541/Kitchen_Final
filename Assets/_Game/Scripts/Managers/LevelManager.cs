@@ -172,7 +172,8 @@ namespace Kitchen.Level
             int next = NextLevelNumber;
             if (next <= 0)
             {
-                ReturnToMenu();
+                ClassicProgress.Begin();
+                LoadKitchen();
                 return;
             }
 
@@ -190,6 +191,7 @@ namespace Kitchen.Level
         /// <summary>Returns to the start screen and resets the campaign.</summary>
         public void ReturnToMenu()
         {
+            ClassicProgress.Leave();
             CampaignProgress.JumpTo(1);
             SceneManager.LoadScene(MenuSceneName);
         }

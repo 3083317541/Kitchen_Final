@@ -89,10 +89,12 @@ namespace Kitchen.EditorTools
             KitchenMachineUI ui = UnityEngine.Object.FindObjectOfType<KitchenMachineUI>();
             CookerRuntime cooker = runtime.Cookers.Cookers.First(station => station.Definition.Kind == CookerKind.ChoppingStation);
             runtime.Input.SetPointerOverUiOverride(true, false);
+            VerifyParallelOrdersAndHeat(runtime, ui);
             int assigned = runtime.Staff.Staff[0].AssignedCookerId;
             runtime.Input.RequestCookerRecipe(cooker.View.gameObject);
             Add("right_click_intent_opens_wheel_without_assigning_staff", ui.IsOpen && runtime.Input.RecipeMenuOpen && assigned == runtime.Staff.Staff[0].AssignedCookerId);
             Add("all_current_recipes_have_buttons", runtime.Recipes.RecipesFor(cooker.Definition.Kind).All(recipe => ui.transform.GetComponentsInChildren<Button>().Any(button => button.name == recipe.Id)));
+            KitchenButtonVerifier.Verify(ui.transform, Add);
             Button tomato = ui.GetComponentsInChildren<Button>().First(button => button.name == "chop_tomato");
             tomato.onClick.Invoke();
             Add("choose_tomato_closes_and_releases_input", cooker.PreferredRecipeId == "chop_tomato" && !ui.IsOpen && !runtime.Input.RecipeMenuOpen);
@@ -166,6 +168,59 @@ namespace Kitchen.EditorTools
             UnityEngine.Object.Destroy(strategy);
         }
 
+        private static void VerifyParallelOrdersAndHeat(GameRuntime runtime, KitchenMachineUI ui)
+        {
+            ParallelOrderPanel panel = ui.GetComponentInChildren<ParallelOrderPanel>();
+            Add("parallel_tickets_visible_in_play", panel != null && runtime.Orders.ActiveOrders.Count == 2 &&
+                panel.GetComponentsInChildren<Button>().Count(button => button.name.StartsWith("SubmitTicket_")) == 2);
+            if (panel == null || runtime.Orders.ActiveOrders.Count != 2) return;
+            var first = runtime.Orders.ActiveOrders[0];
+            var second = runtime.Orders.ActiveOrders[1];
+            runtime.GrantItem(second.Dish, second.DishRequired);
+            runtime.GrantItem(runtime.CleanPlate, second.PlatesRequired);
+            panel.Refresh();
+            Button submit = panel.GetComponentsInChildren<Button>().First(button => button.name == "SubmitTicket_1");
+            Add("parallel_second_submit_enabled", submit.interactable);
+            int money = runtime.Money;
+            submit.onClick.Invoke();
+            Add("parallel_second_button_targets_own_order", second.State == OrderState.Completed && first.IsActive &&
+                runtime.Orders.Current == first && runtime.Money == money + second.Reward && runtime.Orders.ActiveOrders.Count == 2);
+            Canvas.ForceUpdateCanvases();
+            RectTransform bounds = Find(panel.transform, "ParallelOrderContent");
+            Rect inclusiveBounds = bounds.rect;
+            inclusiveBounds.xMin -= 0.1f;
+            inclusiveBounds.yMin -= 0.1f;
+            inclusiveBounds.xMax += 0.1f;
+            inclusiveBounds.yMax += 0.1f;
+            bool fits = true;
+            foreach (RectTransform ticket in bounds)
+            {
+                if (!ticket.gameObject.activeSelf || !ticket.name.StartsWith("OrderTicket_")) continue;
+                Vector3[] corners = new Vector3[4];
+                ticket.GetWorldCorners(corners);
+                fits &= corners.All(corner => inclusiveBounds.Contains(bounds.InverseTransformPoint(corner)));
+            }
+            Add("parallel_tickets_fit_panel", fits);
+
+            CookerRuntime pan = runtime.Cookers.Cookers.First(station => station.Definition.Kind == CookerKind.FryingPan);
+            runtime.Work.GetStrategy(WorkType.Timed).Reset(pan);
+            pan.AddOutput(runtime.FindItem("cooked_meat_slice"), 1);
+            pan.State = CookerState.ReadyToCollect;
+            typeof(CookerRuntime).GetProperty("ReadySeconds").SetValue(pan, pan.Definition.BurnGraceDuration * 0.5f);
+            ui.SendMessage("LateUpdate");
+            RectTransform badge = Find(ui.transform, "CookerProgress_" + pan.Id);
+            PaperRingGraphic normal = badge.Find("Progress").GetComponent<PaperRingGraphic>();
+            PaperRingGraphic warning = badge.Find("OvercookProgress").GetComponent<PaperRingGraphic>();
+            Add("heat_red_ring_uses_overcook_progress", Mathf.Approximately(normal.Progress, 1f) &&
+                Mathf.Approximately(warning.Progress, 0.5f) && warning.color.r > warning.color.g && !warning.raycastTarget);
+            Capture(runtime, "Logs/parallel_orders_overcook.png");
+            typeof(CookerRuntime).GetProperty("HeatStopped").SetValue(pan, true);
+            ui.SendMessage("LateUpdate");
+            Add("heat_stopped_ring_safe_green", warning.Progress == 0f && normal.color.g > normal.color.r);
+            runtime.Work.GetStrategy(WorkType.Timed).Reset(pan);
+            pan.State = CookerState.Idle;
+        }
+
         private static RectTransform Find(Transform parent, string name)
         {
             return parent.GetComponentsInChildren<RectTransform>(true).First(rect => rect.name == name);
@@ -190,6 +245,7 @@ namespace Kitchen.EditorTools
             camera.Render();
             foreach (PaperRingGraphic ring in canvas.GetComponentsInChildren<PaperRingGraphic>())
             {
+                if (ring.Progress <= 0f) continue;
                 Mesh geometry = ring.canvasRenderer.GetMesh();
                 Add("ring_has_visible_geometry_" + Path.GetFileNameWithoutExtension(path) + "_" + ring.name,
                     geometry != null && geometry.vertexCount > 0 && !ring.canvasRenderer.cull && ring.color.a > 0f);

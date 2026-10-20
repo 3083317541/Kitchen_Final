@@ -41,6 +41,23 @@ namespace Kitchen.EditorTools
         [MenuItem("Kitchen/UI/Apply Paper UI (UI Only)", false, 1)]
         public static void UpdateScenes()
         {
+            Apply(true, true);
+        }
+
+        [MenuItem("Kitchen/UI/Apply Main Menu (Menu Only)", false, 2)]
+        public static void UpdateMainMenu()
+        {
+            Apply(false, true);
+        }
+
+        [MenuItem("Kitchen/UI/Apply Kitchen HUD (HUD Only)", false, 3)]
+        public static void UpdateKitchenHud()
+        {
+            Apply(true, false);
+        }
+
+        private static void Apply(bool kitchen, bool menu)
+        {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Stop Play mode before updating UI.");
             for (int index = 0; index < SceneManager.sceneCount; index++)
             {
@@ -48,16 +65,17 @@ namespace Kitchen.EditorTools
                     throw new InvalidOperationException("Save your open scene changes before applying the UI update.");
             }
             SceneSetup[] setup = EditorSceneManager.GetSceneManagerSetup();
-            TMP_FontAsset font = KitchenSceneGenerator.EnsureFontAsset();
+            TMP_FontAsset font = kitchen ? KitchenSceneGenerator.EnsureFontAsset() : KitchenMenuFonts.Chinese;
             if (font == null) throw new InvalidOperationException("The Chinese UI font is missing.");
             try
             {
-                UpdateKitchen(font);
-                UpdateMenu(font);
+                if (kitchen) UpdateKitchen(font);
+                if (menu) UpdateMenu(font);
                 AssetDatabase.SaveAssets();
                 Directory.CreateDirectory("Logs");
                 File.WriteAllText(ResultPath, JsonUtility.ToJson(new Result { success = true,
-                    message = "Updated Kitchen and MainMenu UI. Gameplay roots and configuration assets are preserved." }, true));
+                    message = kitchen && menu ? "Updated Kitchen and MainMenu UI. Gameplay roots and configuration assets are preserved."
+                        : kitchen ? "Updated Kitchen HUD only." : "Updated MainMenu UI only." }, true));
                 Debug.Log("[Kitchen UI] Paper UI applied. Only Canvas objects and UI bindings were updated.");
             }
             finally

@@ -36,6 +36,7 @@ namespace Kitchen.UI
         {
             public RectTransform Root;
             public PaperRingGraphic Ring;
+            public PaperRingGraphic WarningRing;
             public TMP_Text Percent;
             public TMP_Text Status;
         }
@@ -211,9 +212,11 @@ namespace Kitchen.UI
                 badge.Root.anchoredPosition = ScreenPoint(world);
                 badge.Root.localScale = Vector3.one * Mathf.Min(1f, canvasRect.rect.height / 900f);
                 bool ready = cooker.State == CookerState.ReadyToCollect || cooker.State == CookerState.Blocked;
-                badge.Ring.Progress = ready ? 1f : cooker.WorkProgress;
-                badge.Ring.color = cooker.State == CookerState.Burnt ? new Color32(222, 128, 92, 255) : Yellow;
-                badge.Percent.text = ready ? "完成" : cooker.State == CookerState.Burnt ? "焦了" : $"{cooker.WorkProgress * 100f:0}%";
+                badge.Ring.Progress = ready || cooker.IsOvercooking ? 1f : cooker.WorkProgress;
+                badge.Ring.color = cooker.HasAnyOutput && cooker.HeatStopped ? new Color32(98, 173, 118, 255) : Yellow;
+                badge.WarningRing.Progress = cooker.BurnProgress;
+                badge.Percent.text = cooker.IsOvercooking ? $"{cooker.BurnProgress * 100f:0}%" :
+                    ready ? "完成" : cooker.State == CookerState.Burnt ? "焦了" : $"{cooker.WorkProgress * 100f:0}%";
                 badge.Status.text = Status(cooker);
             }
         }
@@ -238,17 +241,24 @@ namespace Kitchen.UI
             PaperRingGraphic ring = fill.gameObject.AddComponent<PaperRingGraphic>();
             ring.color = Yellow;
             ring.raycastTarget = false;
-            return new ProgressBadge { Root = root, Ring = ring,
+            RectTransform warning = Rect(root, "OvercookProgress", new Vector2(76f, 76f), new Vector2(0f, 14f));
+            PaperRingGraphic warningRing = warning.gameObject.AddComponent<PaperRingGraphic>();
+            warningRing.color = new Color32(222, 65, 55, 255);
+            warningRing.Progress = 0f;
+            warningRing.raycastTarget = false;
+            return new ProgressBadge { Root = root, Ring = ring, WarningRing = warningRing,
                 Percent = Label(root, "0%", new Vector2(64f, 30f), new Vector2(0f, 14f), 21f),
                 Status = Label(root, "等待员工", new Vector2(146f, 26f), new Vector2(0f, -40f), 19f) };
         }
 
         private static string Status(CookerRuntime cooker)
         {
+            if (cooker.IsOvercooking) return "过火 · 满圈烤糊";
+            if (cooker.HasAnyOutput && cooker.HeatStopped && cooker.State != CookerState.Collecting) return "已关火 · 安全待取";
             switch (cooker.State)
             {
                 case CookerState.Preparing: return "装料中";
-                case CookerState.Collecting: return "收取中";
+                case CookerState.Collecting: return cooker.IsActive ? "收取中" : "已关火 · 安全待取";
                 case CookerState.Cleaning: return "清理中";
                 case CookerState.Burnt: return "需要清理";
                 case CookerState.ReadyToCollect: return "等待收取";
@@ -274,6 +284,7 @@ namespace Kitchen.UI
             button.targetGraphic = tray;
             button.onClick.AddListener(() => clicked());
             root.gameObject.AddComponent<PaperButtonMotion>().Configure(visual);
+            PaperButtonStyle.Apply(button, selected ? PaperButtonStyle.Positive : PaperButtonStyle.Primary);
             return button;
         }
 

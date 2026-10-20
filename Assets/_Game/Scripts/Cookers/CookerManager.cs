@@ -193,7 +193,8 @@ namespace Kitchen.Cookers
             for (int index = 0; index < cookers.Count; index++)
             {
                 CookerRuntime cooker = cookers[index];
-                for (int attempt = 0; attempt < 4 && !IsWorkPositionOpen(cooker.WorkPosition); attempt++)
+                for (int attempt = 0; attempt < 4 && !IsWorkPositionOpen(cooker.WorkPosition) &&
+                    !(Runtime.Classic != null && Runtime.Classic.Run.HasSnapshot); attempt++)
                 {
                     cooker.Facing = CookerFacingUtility.Clockwise(cooker.Facing);
                 }
@@ -221,15 +222,16 @@ namespace Kitchen.Cookers
                 return null;
             }
 
+            int price = free ? 0 : Runtime.GetCookerPrice(definition);
             if (!free)
             {
-                if (!Runtime.CanAfford(definition.Price))
+                if (!Runtime.CanAfford(price))
                 {
-                    Runtime.Notify($"金钱不足，无法购买 {definition.DisplayName}（{definition.Price}）。", MessageKind.Warning);
+                    Runtime.Notify($"金钱不足，无法购买 {definition.DisplayName}（{price}）。", MessageKind.Warning);
                     return null;
                 }
 
-                Runtime.SpendMoney(definition.Price);
+                Runtime.SpendMoney(price);
             }
 
             int id = nextCookerId++;
@@ -243,7 +245,7 @@ namespace Kitchen.Cookers
             {
                 if (!free)
                 {
-                    Runtime.AddMoney(definition.Price);
+                    Runtime.AddMoney(price);
                 }
 
                 return null;
@@ -255,7 +257,8 @@ namespace Kitchen.Cookers
 
             CreateView(cooker);
 
-            Runtime.Notify($"已放置 {definition.DisplayName}，花费 {definition.Price}。", MessageKind.Info);
+            if (!free) Runtime.Classic?.Run.RecordCookerPurchase(definition.Id);
+            Runtime.Notify($"已放置 {definition.DisplayName}，花费 {price}。", MessageKind.Info);
             return cooker;
         }
 
@@ -302,9 +305,10 @@ namespace Kitchen.Cookers
                 return null;
             }
 
-            if (!Runtime.CanAfford(definition.Price))
+            int price = Runtime.GetCookerPrice(definition);
+            if (!Runtime.CanAfford(price))
             {
-                Runtime.Notify($"金钱不足：{definition.DisplayName} 需要 {definition.Price}。", MessageKind.Warning);
+                Runtime.Notify($"金钱不足：{definition.DisplayName} 需要 {price}。", MessageKind.Warning);
                 return null;
             }
 

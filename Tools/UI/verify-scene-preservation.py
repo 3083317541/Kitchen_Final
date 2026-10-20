@@ -36,7 +36,7 @@ def gameplay_objects(scene_path, ignored_scripts):
             continue
         if any("guid: " + guid in section for guid in ignored_scripts):
             continue
-        if kind == "1660057539":
+        if kind in {"4", "224", "1660057539"}:
             section = "".join(line for line in section.splitlines(keepends=True)
                               if not any("fileID: " + transform_id + "}" in line for transform_id in ui_transforms))
         remaining[object_id] = section

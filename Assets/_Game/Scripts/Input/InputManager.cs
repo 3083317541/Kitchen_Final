@@ -471,7 +471,7 @@ namespace Kitchen.Input
 
             // A missing pending definition means the highlight is being driven on its own; the cell is
             // still legal in that case, so the highlight logic does not depend on the purchase state.
-            bool affordable = pendingCooker == null || runtime.CanAfford(pendingCooker.Price);
+            bool affordable = pendingCooker == null || runtime.CanAfford(runtime.GetCookerPrice(pendingCooker));
             bool legal = inBounds && free && affordable && runtime.Cookers.CanPlaceCooker(cell, pendingFacing);
 
             HoveredCellLegal = legal;

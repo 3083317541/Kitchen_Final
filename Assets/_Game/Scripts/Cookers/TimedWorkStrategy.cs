@@ -40,26 +40,38 @@ namespace Kitchen.Cookers
 
             if (cooker.HasAnyOutput)
             {
-                cooker.ReadySeconds += deltaTime;
-                if (cooker.ReadySeconds >= definition.BurnGraceDuration)
+                TryStopHeat(cooker);
+                if (!cooker.HeatStopped) cooker.ReadySeconds += deltaTime;
+                if (!cooker.HeatStopped && cooker.ReadySeconds >= cooker.EffectiveBurnGraceDuration)
                 {
                     cooker.ClearOutputs();
                     cooker.OperationSeconds = 0f;
                     cooker.ResetProgress();
                     cooker.State = CookerState.Burnt;
+                    cooker.Owner?.Classic?.RecordBurntBatch();
                     cooker.StatusText = "食物烧焦，需要员工清理";
                     cooker.Owner?.Notify("食物烧焦了，请让员工到正面操作格清理设备。", MessageKind.Warning);
                     return;
                 }
 
+                if (cooker.HeatStopped && !cooker.IsActive)
+                {
+                    Entities.StaffRuntime employee = FindAttendingStaff(cooker);
+                    if (employee != null && employee.AssignedCookerId == 0)
+                    {
+                        cooker.Owner.Staff.TryAssignCooker(employee, cooker);
+                    }
+                }
+
                 if (Operate(cooker, deltaTime, definition.CollectionDuration, CookerState.Collecting,
-                    $"取出成品（距烧焦 {definition.BurnGraceDuration - cooker.ReadySeconds:0.0} 秒）"))
+                    cooker.HeatStopped ? "已关火，取出成品" : "等待员工关火"))
                 {
                     cooker.CollectAllOutput();
                     cooker.OperationSeconds = 0f;
                     cooker.ReadySeconds = 0f;
                     cooker.ResetProgress();
                     cooker.State = CookerState.Idle;
+                    cooker.HeatStopped = false;
                     cooker.StatusText = "成品已收入库存";
                     cooker.Owner?.Staff?.ReleaseCooker(cooker.Id);
                 }
@@ -84,6 +96,7 @@ namespace Kitchen.Cookers
                 }
 
                 cooker.OperationSeconds = 0f;
+                cooker.HeatStopped = false;
                 cooker.State = CookerState.Preparing;
             }
 
@@ -129,8 +142,35 @@ namespace Kitchen.Cookers
             cooker.ForgetLock();
             cooker.ReadySeconds = 0f;
             cooker.OperationSeconds = 0f;
+            cooker.WorkProgress = 1f;
             cooker.State = CookerState.ReadyToCollect;
-            cooker.StatusText = "加热完成，等待员工取出";
+            cooker.HeatStopped = false;
+            TryStopHeat(cooker);
+            cooker.StatusText = cooker.HeatStopped ? "已自动关火，成品安全待取" : "加热完成，红条满后烤糊";
+        }
+
+        private static Entities.StaffRuntime FindAttendingStaff(CookerRuntime cooker)
+        {
+            if (cooker.Owner == null) return null;
+            var employees = cooker.Owner.Staff.Staff;
+            for (int index = 0; index < employees.Count; index++)
+            {
+                Entities.StaffRuntime employee = employees[index];
+                if (!employee.IsMoving && employee.GridPosition == cooker.WorkPosition &&
+                    employee.FrontCell == cooker.GridPosition)
+                {
+                    return employee;
+                }
+            }
+
+            return null;
+        }
+
+        private static void TryStopHeat(CookerRuntime cooker)
+        {
+            if (cooker.HeatStopped || FindAttendingStaff(cooker) == null) return;
+            cooker.HeatStopped = true;
+            cooker.StatusText = "已自动关火，成品安全待取";
         }
 
         private static bool Operate(CookerRuntime cooker, float deltaTime, float duration, CookerState state, string label)
@@ -142,7 +182,7 @@ namespace Kitchen.Cookers
             }
 
             cooker.State = state;
-            cooker.OperationSeconds += deltaTime;
+            cooker.OperationSeconds += deltaTime * (cooker.Owner?.Classic?.Run.WorkMultiplier ?? 1f);
             cooker.WorkProgress = Mathf.Clamp01(cooker.OperationSeconds / duration);
             cooker.StatusText = $"{label} {cooker.WorkProgress * 100f:0}%";
             return cooker.OperationSeconds >= duration;
@@ -154,6 +194,7 @@ namespace Kitchen.Cookers
             cooker.ClearOutputs();
             cooker.OperationSeconds = 0f;
             cooker.ReadySeconds = 0f;
+            cooker.HeatStopped = false;
             cooker.ResetProgress();
         }
     }

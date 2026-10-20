@@ -92,6 +92,12 @@ namespace Kitchen.Runtime
         // ------------------------------------------------------------------ runtime state
 
         private bool initialized;
+        private bool levelStarted;
+        private LevelConfig classicLevelInstance;
+        public ClassicDayController Classic { get; private set; }
+        public bool TutorialBriefingOpen { get; private set; }
+        public bool CanArrangeKitchen => Classic == null || Classic.CanArrange;
+        public bool CanOperateKitchen => !TutorialBriefingOpen && (Classic == null || Classic.Phase == DayPhase.Service);
 
         /// <summary>Money the player currently holds.</summary>
         public int Money { get; private set; }
@@ -245,6 +251,14 @@ namespace Kitchen.Runtime
                 return;
             }
 
+            if (Level.IsClassicMode)
+            {
+                if (ClassicProgress.Current == null) ClassicProgress.Begin();
+                Classic = new ClassicDayController(this, ClassicProgress.Current, Level.ServiceDuration);
+                classicLevelInstance = Classic.PrepareLevel(Level);
+                Level = classicLevelInstance;
+                staffManager?.SetMoveSpeed(staffMoveSpeed * Classic.Run.MoveMultiplier);
+            }
             ApplyLevelContent(Level);
             gridManager?.BuildGrid(Level);
 
@@ -266,6 +280,11 @@ namespace Kitchen.Runtime
 
             cookerManager?.SpawnLevelCookers(Level);
             staffManager?.SpawnLevelStaff(Level);
+            if (Classic != null && Classic.Run.HasSnapshot)
+            {
+                for (int index = 0; index < cookerManager.Cookers.Count && index < Classic.Run.PreferredRecipes.Count; index++)
+                    cookerManager.Cookers[index].PreferredRecipeId = Classic.Run.PreferredRecipes[index];
+            }
 
             // The grid was created empty, so every level placed object is registered on it once both
             // owners have finished creating their objects.
@@ -303,12 +322,51 @@ namespace Kitchen.Runtime
                 return;
             }
 
+            if (levelStarted) return;
+            levelStarted = true;
+            TutorialBriefingOpen = Classic == null && uiManager != null && Level.TutorialSteps.Count > 0;
+            if (Classic == null && !TutorialBriefingOpen) orderManager?.StartFirstOrder();
+            uiManager?.RefreshAll();
+        }
+
+        public bool BeginTutorialPractice()
+        {
+            if (!TutorialBriefingOpen) return false;
+            TutorialBriefingOpen = false;
             orderManager?.StartFirstOrder();
             uiManager?.RefreshAll();
+            return true;
+        }
+
+        public bool BeginClassicService()
+        {
+            bool started = Classic != null && Classic.BeginService();
+            if (started) uiManager?.RefreshAll();
+            return started;
+        }
+
+        public bool ChooseClassicSkill(KitchenSkill skill)
+        {
+            if (Classic == null || !Classic.ChooseSkill(skill)) return false;
+            UnityEngine.SceneManagement.SceneManager.LoadScene(Kitchen.Level.LevelManager.KitchenSceneName);
+            return true;
+        }
+
+        public void ReturnToMainMenu()
+        {
+            ClassicProgress.Leave();
+            UnityEngine.SceneManagement.SceneManager.LoadScene(Kitchen.Level.LevelManager.MenuSceneName);
         }
 
         private LevelConfig ResolveLevelConfig()
         {
+            if (ClassicProgress.Current != null)
+            {
+                LevelConfig classicLevel = Resources.Load<LevelConfig>("Kitchen/Level_Classic");
+                if (classicLevel != null) return classicLevel;
+                Debug.LogError("[GameRuntime] Classic mode configuration is missing.");
+                ClassicProgress.Leave();
+            }
             // The campaign position wins, so the menu can start any level. The inspector value is the
             // fallback for a scene that has no level manager at all.
             LevelConfig campaignLevel = levelManager != null ? levelManager.ResolveLevel() : null;
@@ -415,6 +473,18 @@ namespace Kitchen.Runtime
                 return;
             }
 
+            if (TutorialBriefingOpen || (Classic != null && Classic.Phase != DayPhase.Service))
+            {
+                if (!TutorialBriefingOpen && Classic.CanArrange)
+                {
+                    inputManager?.Tick(deltaTime);
+                    staffManager?.Tick(deltaTime);
+                    cookerManager?.Tick(0f);
+                }
+                uiManager?.Tick(deltaTime);
+                return;
+            }
+            if (Classic != null) deltaTime = Mathf.Min(deltaTime, Classic.RemainingSeconds);
             ElapsedTime += deltaTime;
 
             // Input is sampled once per frame, then interpreted. Managers never read input devices.
@@ -427,6 +497,8 @@ namespace Kitchen.Runtime
             orderManager?.Tick(deltaTime);
             staffManager?.Tick(deltaTime);
             cookerManager?.Tick(deltaTime);
+
+            Classic?.Tick(deltaTime);
 
             uiManager?.Tick(deltaTime);
         }
@@ -451,10 +523,21 @@ namespace Kitchen.Runtime
             gridManager?.Shutdown();
             recipeManager?.Shutdown();
             inventoryManager?.Shutdown();
+            if (classicLevelInstance != null)
+            {
+                if (Application.isPlaying) Destroy(classicLevelInstance);
+                else DestroyImmediate(classicLevelInstance);
+            }
             initialized = false;
         }
 
         // ------------------------------------------------------------------ money
+
+        public int GetCookerPrice(CookerDefinition definition)
+        {
+            if (definition == null) return 0;
+            return Classic != null ? Classic.Run.CookerPrice(definition, Level.ClassicCookerPriceIncreasePercent) : definition.Price;
+        }
 
         public bool CanAfford(int price)
         {
@@ -505,6 +588,7 @@ namespace Kitchen.Runtime
         /// <summary>Called by InputManager when a staff member was clicked in the world.</summary>
         public void HandleStaffClicked(StaffRuntime staff)
         {
+            if (!CanArrangeKitchen || TutorialBriefingOpen) return;
             if (staff == null)
             {
                 return;
@@ -518,13 +602,14 @@ namespace Kitchen.Runtime
         /// <summary>Called by InputManager when a cooker was clicked in the world.</summary>
         public void HandleCookerClicked(CookerRuntime cooker)
         {
+            if (!CanArrangeKitchen || TutorialBriefingOpen) return;
             if (cooker == null)
             {
                 return;
             }
 
             cookerManager?.SelectCooker(cooker);
-            if (staffManager != null && staffManager.Selected != null &&
+            if (CanOperateKitchen && staffManager != null && staffManager.Selected != null &&
                 staffManager.TryAssignCooker(staffManager.Selected, cooker))
             {
                 Notify($"{staffManager.Selected.DisplayName} 负责 {cooker.Definition.DisplayName}。", MessageKind.Info);
@@ -548,6 +633,7 @@ namespace Kitchen.Runtime
         /// <summary>Player asked to buy and place a cooker. Returns true when it was placed.</summary>
         public bool TryBuildCooker(CookerDefinition definition, Vector2Int cell, CookerFacing facing = CookerFacing.North)
         {
+            if (!CanArrangeKitchen || TutorialBriefingOpen) return false;
             if (definition == null)
             {
                 return false;
@@ -567,6 +653,7 @@ namespace Kitchen.Runtime
         /// <summary>Player asked to move the selected cooker one cell.</summary>
         public bool TryMoveCooker(CookerRuntime cooker, Vector2Int direction)
         {
+            if (!CanArrangeKitchen || TutorialBriefingOpen) return false;
             if (cooker == null || direction == Vector2Int.zero)
             {
                 return false;
@@ -578,17 +665,20 @@ namespace Kitchen.Runtime
         /// <summary>Player asked to move the selected chef one cell.</summary>
         public bool TryMoveSelectedStaff(Vector2Int direction)
         {
+            if (!CanArrangeKitchen || TutorialBriefingOpen) return false;
             return staffManager != null && staffManager.TryMoveSelected(direction);
         }
 
         public bool TryRotateCooker(CookerRuntime cooker)
         {
+            if (!CanArrangeKitchen || TutorialBriefingOpen) return false;
             return cookerManager != null && cookerManager.TryRotateCooker(cooker);
         }
 
         /// <summary>Player asked to delete the selected cooker.</summary>
         public bool TrySellCooker(CookerRuntime cooker)
         {
+            if (!CanArrangeKitchen || TutorialBriefingOpen) return false;
             if (cooker == null)
             {
                 return false;
@@ -599,6 +689,7 @@ namespace Kitchen.Runtime
 
         public bool TrySetCookerRecipe(CookerRuntime cooker, string recipeId)
         {
+            if (!CanArrangeKitchen || TutorialBriefingOpen) return false;
             if (cooker == null || cooker.Owner != this || !cooker.IsPlaced || cooker.Definition == null || recipeManager == null)
                 return false;
             string caption = "自动";
@@ -617,6 +708,7 @@ namespace Kitchen.Runtime
         /// <summary>Player asked to collect the produce sitting in a cooker.</summary>
         public bool TryCollectCookerOutput(CookerRuntime cooker)
         {
+            if (!CanOperateKitchen) return false;
             if (cooker == null)
             {
                 return false;
@@ -628,7 +720,12 @@ namespace Kitchen.Runtime
         /// <summary>Player asked to serve the active order.</summary>
         public bool TrySubmitOrder()
         {
-            return orderManager != null && orderManager.TrySubmitCurrentOrder();
+            return CanOperateKitchen && orderManager != null && orderManager.TrySubmitCurrentOrder();
+        }
+
+        public bool TrySubmitOrder(OrderManager.OrderStatus order)
+        {
+            return CanOperateKitchen && orderManager != null && orderManager.TrySubmitOrder(order);
         }
 
         // ------------------------------------------------------------------ input callbacks
@@ -640,10 +737,11 @@ namespace Kitchen.Runtime
                 return;
             }
 
-            bool affordable = CanAfford(definition.Price);
+            int price = GetCookerPrice(definition);
+            bool affordable = CanAfford(price);
             if (!affordable)
             {
-                Notify($"{definition.DisplayName} 需要 {definition.Price}，当前只有 {Money}。", MessageKind.Warning);
+                Notify($"{definition.DisplayName} 需要 {price}，当前只有 {Money}。", MessageKind.Warning);
                 inputManager?.ExitBuildMode();
                 return;
             }

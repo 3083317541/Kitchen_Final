@@ -99,6 +99,8 @@ namespace Kitchen.UI
         // ------------------------------------------------------------------ runtime state
 
         private GameRuntime runtime;
+        private ParallelOrderPanel parallelOrders;
+        private KitchenDayPanel dayPanel;
         private InputManager input;
         private float refreshTimer;
         private float notificationTimer;
@@ -125,6 +127,19 @@ namespace Kitchen.UI
         public void Initialize(GameRuntime gameRuntime)
         {
             runtime = gameRuntime;
+            if (orderPanel != null && orderTitleText != null && submitOrderButton != null)
+            {
+                parallelOrders = orderPanel.GetComponent<ParallelOrderPanel>();
+                if (parallelOrders == null) parallelOrders = orderPanel.AddComponent<ParallelOrderPanel>();
+                parallelOrders.Initialize(runtime, orderTitleText, submitOrderButton);
+                Canvas canvas = orderPanel.GetComponentInParent<Canvas>();
+                if (canvas != null)
+                {
+                    dayPanel = canvas.GetComponent<KitchenDayPanel>();
+                    if (dayPanel == null) dayPanel = canvas.gameObject.AddComponent<KitchenDayPanel>();
+                    dayPanel.Initialize(runtime, orderTitleText, submitOrderButton, orderPanel.GetComponent<Image>());
+                }
+            }
             if (moneyText != null) moneyText.GetComponent<PaperMoneyFeedback>()?.ResetValue();
 
             if (runtime != null)
@@ -290,7 +305,7 @@ namespace Kitchen.UI
                 if (i < catalogue.Count && catalogue[i] != null)
                 {
                     CookerDefinition definition = catalogue[i];
-                    label.text = $"{definition.DisplayName}　{definition.Price} 金币";
+                    label.text = $"{definition.DisplayName}　{runtime.GetCookerPrice(definition)} 金币";
                     if (i < cookerButtons.Length && cookerButtons[i] != null) cookerButtons[i].gameObject.SetActive(true);
                 }
                 else
@@ -324,9 +339,10 @@ namespace Kitchen.UI
                 return;
             }
 
-            if (!runtime.CanAfford(definition.Price))
+            int price = runtime.GetCookerPrice(definition);
+            if (!runtime.CanAfford(price))
             {
-                ShowNotification($"金钱不足，无法购买 {definition.DisplayName}（{definition.Price}）。", MessageKind.Warning);
+                ShowNotification($"金钱不足，无法购买 {definition.DisplayName}（{price}）。", MessageKind.Warning);
                 return;
             }
 
@@ -516,7 +532,7 @@ namespace Kitchen.UI
             {
                 levelClearNextButtonText.text = cleared != null && cleared.HasNextLevel
                     ? "进入下一关"
-                    : "返回开始界面";
+                    : "进入经典模式";
             }
 
             SetLevelClearVisible(true);
@@ -607,6 +623,8 @@ namespace Kitchen.UI
                 return;
             }
 
+            dayPanel?.Refresh();
+
             RefreshTopBar();
             RefreshOrderPanel();
             RefreshSelectionPanel();
@@ -630,17 +648,22 @@ namespace Kitchen.UI
                     ? "WASD 移动 / Esc 取消"
                     : "左键选择 · 右键机器选加工";
                 modeText.text = $"{DescribeMode(input != null ? input.Mode : InteractionMode.Normal)} | {hint}";
+                if (runtime.Classic != null)
+                    modeText.text = $"经典 · 第 {runtime.Classic.Run.Day} 天 · {runtime.Classic.Score} 分 | {hint}";
             }
 
             if (timeText != null)
             {
-                int seconds = Mathf.FloorToInt(runtime.ElapsedTime);
+                int seconds = runtime.Classic != null ? Mathf.CeilToInt(runtime.Classic.RemainingSeconds) :
+                    Mathf.FloorToInt(runtime.ElapsedTime);
                 timeText.text = $"{seconds / 60:00}:{seconds % 60:00}";
             }
 
             if (orderCountText != null && runtime.Orders != null)
             {
                 orderCountText.text = $"完成 {runtime.Orders.CompletedOrders} / 失败 {runtime.Orders.FailedOrders}";
+                if (runtime.Classic != null)
+                    orderCountText.text = $"上菜 {runtime.Classic.CompletedOrders} / 超时 {runtime.Classic.MissedOrders}";
             }
 
             if (inventoryText != null && runtime.Inventory != null)
@@ -719,6 +742,12 @@ namespace Kitchen.UI
 
         private void RefreshOrderPanel()
         {
+            if (parallelOrders != null)
+            {
+                parallelOrders.Refresh();
+                return;
+            }
+
             if (orderTitleText == null || runtime.Orders == null)
             {
                 return;
@@ -812,7 +841,7 @@ namespace Kitchen.UI
 
                 if (staffHintText != null)
                 {
-                    staffHintText.text = "WASD 走到正面操作格，再点击设备。共用操作格一次只能站一人。";
+                    staffHintText.text = "WASD 移动或朝向设备；面前一格的煎锅完成后自动关火取出。";
                 }
             }
 
@@ -825,7 +854,8 @@ namespace Kitchen.UI
 
                 if (cookerStateText != null)
                 {
-                    cookerStateText.text = $"{DescribeState(cooker.State)} · {runtime.Cookers.DescribeWorkPosition(cooker)}";
+                    string state = cooker.IsOvercooking ? "过火中" : cooker.HasAnyOutput && cooker.HeatStopped ? "已关火" : DescribeState(cooker.State);
+                    cookerStateText.text = $"{state} · {runtime.Cookers.DescribeWorkPosition(cooker)}";
                 }
 
                 if (cookerPositionText != null)

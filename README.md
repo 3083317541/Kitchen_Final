@@ -5,7 +5,7 @@
 参考《王之凝视》的"厨具即建筑、员工激活厨具"玩法：你扮演厨师长，在只有三名员工的厨房里实时安排员工站位与厨具，完成订单。
 
 A top-down 3D kitchen automation demo. Chefs operate one assigned cooker from its front work cell.
-Heating runs unattended after preparation and requires a return visit to collect the food.
+Heating runs unattended after preparation. A chef facing the pan stops the heat and collects the food when idle.
 
 ---
 
@@ -13,7 +13,7 @@ Heating runs unattended after preparation and requires a return visit to collect
 
 1. 用 **Unity 2022.3.62f3c1** 打开本工程。
 2. 打开场景 `Assets/_Game/Scenes/MainMenu.unity`（开始界面）。
-3. 按 **Play**，点击 **开始游戏** 进入第一关。
+3. 按 **Play**，选择 **教程**（三关入门）或 **经典模式**（每日营业）。主菜单采用左右分区的 KITCHEN CLUB 标题与白色餐牌；设置可调整全局音量、厨房 HUD 缩放和界面弹性动效，并自动保存。
 
 也可以直接打开 `Assets/_Game/Scenes/Kitchen.unity` 按 Play，此时会从当前关卡（默认第一关）开始。
 
@@ -21,14 +21,32 @@ Heating runs unattended after preparation and requires a return visit to collect
 **`Kitchen/UI/Apply Paper UI (UI Only)`**。它只更新厨房与主菜单的 Canvas 和 UI 绑定，保留玩法、美术及关卡资产。
 首次缺少 TMP 基础资源时，先执行 **`Kitchen/6. Import TMP Essential Resources`**。
 
-> Open `Assets/_Game/Scenes/MainMenu.unity` and press Play, then click 开始游戏.
+只更新主菜单时执行 **`Kitchen/UI/Apply Main Menu (Menu Only)`**，不会更新厨房场景。菜单使用项目内的 Lilita One 与 Noto Sans SC Bold 字体，均附 OFL 许可，见 `Assets/ThirdParty/GoogleFonts/README.md`。菜单窄屏自动上下排列；面包回形针可点击互动。
+
+只更新局内界面时执行 **`Kitchen/UI/Apply Kitchen HUD (HUD Only)`**。局内按钮采用纯色圆角：蓝色操作、绿色确认/上菜、灰色次级、珊瑚色出售/退出、淡紫色技能。所有可见操作按钮（包括运行时轮盘、并行订单、每日简报和结算）统一提供悬停提亮与抬升、按压变深与压缩、松手回弹和移出复位；不可用时置灰。关闭弹性动效后保留颜色反馈。白色面板与黄色标题块继续保留。
+
+鼠标悬停按钮时轻微抬升、放大并变色，悬停面包回形针时轻转；移出自动复位。点击教程 / 经典模式先显示简短说明和三条操作提示，再点击 **开始教程 / 开始营业** 才进入游戏。返回箭头或 Esc 回到菜单，不重置当前进度。关闭弹性动效后仍保留按钮颜色反馈。
+
+> Open `Assets/_Game/Scenes/MainMenu.unity` and press Play, then choose Tutorials or Classic mode.
 > Opening `Kitchen.unity` directly also works and starts at the current campaign level.
 > To refresh the HUD, stop Play, save scene edits, and run `Kitchen/UI/Apply Paper UI (UI Only)`.
 > Import `Kitchen/6. Import TMP Essential Resources` first if the TMP essential resources are missing.
 
 ---
 
-## 关卡流程 / Campaign
+## 经典模式 / Classic
+
+- 经典模式使用独立配置 `Assets/_Game/Resources/Kitchen/Level_Classic.asset`，可以从主菜单直接开始，也可以完成第三个教程后进入。
+- 每天分为 **营业简报与备战 → 限时营业 → 结算与技能三选一**。默认每天 180 秒，只有点击开门才开始计时和生产；简报可收起，免费调整已有设备朝向/位置，也可花钱购买设备。
+- 两张订单持续补入，超时顾客离开并换新单；按订单奖励累计当日分数，营业结束后立即停止生产和交付，列出上菜、超时、未上菜、焦糊、当日/累计/最高分。
+- 第一天两名员工、两只盘子、空厨房和 400 金币；全部设备由玩家购买摆放，四类基础设备各买一台共 310 金币。基础原料无限，半成品/成品需要加工，盘子仍要回收清洗。
+- 经典模式同类设备每成功购买一台，后续价格增加原价的 25%，总价向上取整：切菜台依次 50、63、75、88 金币。不同类型分别计数，取消或放置失败不涨价，拆除不降价；购买次数跨天保留，新一轮重置。教程仍使用固定价格。
+- 每日三选一技能：人工加工加速、移动加速、奖励加成、额外盘子、过火宽限、招聘。技能从下一天生效，可叠加；招聘最多两次。
+- 设备布局、朝向、配方偏好、金币和技能跨天保留。每天开始时清空食品与未完成批次，盘子归还并洗净；不会继承未完成订单。
+- 分数与建造资金分开记录，购物不扣得分；参考目标不设失败门槛，后续天数逐步缩短订单耐心时间。当前进度只在本次游戏运行中保留，返回菜单结束本轮，退出游戏不存档。
+- 具体规则、技能数值与调整入口见 `经典模式与教程关卡设计.md`。无需生成场景；每日内容运行时加载，保留已有厨房与美术。
+
+## 教程流程 / Tutorials
 
 | 关卡 | 菜品 | 可用厨具 | 员工 | 初始金钱 | 通关奖励 |
 |---|---|---|---|---|---|
@@ -36,8 +54,10 @@ Heating runs unattended after preparation and requires a return visit to collect
 | 第二关 · 沙拉与汉堡 | 沙拉、生菜番茄肉面包 | 切菜台、煎锅、组装台 | 2 | 250 | 员工 +1、洗碗台 |
 | 第三关 · 盘子循环 | 沙拉、生菜番茄肉面包 | 全部四台 | 3 | 300 | —（最后一关） |
 
-- 每关有**固定订单清单**，全部完成即通关，显示奖励面板，点"进入下一关"继续。
-- **订单超时会重发同一张**，保留库存与加工进度；食物烧焦仍会损失原料，资源耗尽时可重新开始关卡。
+- 三关分别教学站位与沙拉、煎锅与并行订单、盘子循环与员工调度；开场展示操作简报，点击开始练习后计时。
+- 每关有**固定订单清单**；第一关同时一张，后两关同时两张，独立倒计时，可以选择任意一张先上菜；完成一张后补入下一张，全部完成才通关。第三关初始净盘为两只，需要清洗才能完成三次交付。
+- LevelConfig 的 Max Concurrent Orders 可设为 1 或 2；订单 UI 在运行时替换面板内部内容，无需重建场景。
+- **订单超时只重发对应一张**，另一张的计时、库存和加工进度保留；食物烤糊仍会损失原料，资源耗尽时可重新开始关卡。
 - 关卡的初始金钱、库存、员工数、厨具目录、订单清单都是 `Assets/_Game/Resources/Kitchen/Level_0N.asset` 的数据，可以直接在 Inspector 改。
 - 每关的通关奖励记录在 `LevelConfig` 的 `Clear Reward` 里，用于奖励面板显示；下一关的实际内容由它自己的配置决定，避免两处重复计算。
 
@@ -54,9 +74,9 @@ Heating runs unattended after preparation and requires a return visit to collect
 | R | 建造时顺时针旋转预览；普通或移动模式下旋转当前选中的厨具 |
 | Esc / 右键 | 取消建造或移动 |
 | 移动厨具按钮 | 进入移动模式，WASD 或点击相邻格完成移动 |
-| 上菜按钮 | 交付当前订单（需要成品 + 干净盘子） |
+| 每张订单的上菜按钮 | 交付对应订单，可先完成第二张（需要成品 + 干净盘子） |
 
-加工进度显示在机器上方的黄色圆环中，包含暂停、缺料、待取和焦糊状态。轮盘打开时阻止厨房操作；点击空白、右键或 Esc 关闭。今日订单上的面包曲别针采用透明 PNG，点击可以晃动、眨眼和显示短句。
+加工进度显示在机器上方的黄色圆环中。煎锅正常圆环绕满一圈后开始累积红色过火环；红色满圈即烤糊。关火后显示绿色完成环。轮盘打开时阻止厨房操作；点击空白、右键或 Esc 关闭。今日订单上的面包曲别针采用透明 PNG，点击可以晃动、眨眼和显示短句。
 
 ---
 
@@ -69,9 +89,10 @@ Heating runs unattended after preparation and requires a return visit to collect
 - 旋转不收费，释放该设备的员工任务，保留人工加工进度。预置设备先采用关卡里的 Facing，正面受阻时启动阶段顺时针寻找可用方向，以兼容旧关卡。
 - 到位后点击设备明确指定任务，同一员工只能操作一台设备，同一设备只接受一名员工。切菜、组装、洗碗在离岗或换任务时暂停，保留进度。
 - 切菜台每 0.3 秒切一次、共 10 次；煎锅自动加热 5 秒；组装台 10 秒；洗碗台 5 秒一只盘子。
-- 煎锅默认需要 0.75 秒装料，随后释放员工并自动加热。完成后再次指定员工，花 0.5 秒取出入库；未取成品占用设备，10 秒后烧焦，需员工花 1.5 秒清理。清理完成后需再次指派装料。
+- 煎锅默认需要 0.75 秒装料，随后释放员工并自动加热。完成时或完成后，只要已到位员工站在操作格、面前一格覆盖锅，就自动关火，无需再次点击；WASD 可转向被设备阻挡的相邻格，不会走进设备。
+- 关火后成品安全留在锅里，离人也不再增加过火时间。面朝锅的空闲员工自动花 0.5 秒取出入库；不会抢走员工的其他主动任务，也不会自动启动下一批。未被照看的锅默认 10 秒红环满后烤糊，需明确指派员工花 1.5 秒清理。
 - 加热设备有进行中的批次、待取成品或焦糊时，不能移动、旋转或拆除；完成处理后可以重新布置。
-- 这些加热操作时间可在 CookerDefinition 的 Inspector 调整；没有新增物品 ID 或配方。物流、多订单和关卡数值调整仍属后续阶段。
+- 这些加热操作时间可在 CookerDefinition 的 Inspector 调整；没有新增物品 ID 或配方。教程保留有限库存，经典模式基础原料无限；物流尚未加入。
 - 组装台的配方**数量必须精确匹配**，多一份都不算。
 - 出餐必须同时有成品与干净盘子，成功后生成**待归还盘子任务**，10–20 秒后变成脏盘子，
   洗净后重新变成干净盘子——形成盘子循环。

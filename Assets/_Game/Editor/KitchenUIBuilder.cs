@@ -28,10 +28,10 @@ namespace Kitchen.EditorTools
         // Panel palette
         private static readonly Color PanelColor = Color.white;
         private static readonly Color CardColor = Color.white;
-        private static readonly Color ButtonColor = PaperUITheme.Yellow;
-        private static readonly Color ButtonColorServe = PaperUITheme.Yellow;
-        private static readonly Color ButtonColorNeutral = PaperUITheme.Yellow;
-        private static readonly Color ButtonColorDanger = PaperUITheme.Yellow;
+        private static readonly Color ButtonColor = PaperButtonStyle.Primary;
+        private static readonly Color ButtonColorServe = PaperButtonStyle.Positive;
+        private static readonly Color ButtonColorNeutral = PaperButtonStyle.Neutral;
+        private static readonly Color ButtonColorDanger = PaperButtonStyle.Danger;
         private static readonly Color TextColor = PaperUITheme.Ink;
         private static readonly Color TextMuted = PaperUITheme.Muted;
         private static readonly Color TextMoney = PaperUITheme.Ink;
@@ -627,7 +627,7 @@ namespace Kitchen.EditorTools
             labelRect.GetComponent<VerticalLayoutGroup>().childForceExpandHeight = true;
             labelRect.GetComponent<VerticalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
             Text(labelRect, labelName, label, fontSize, TextColor, TextAlignmentOptions.Center, 0f, 0f, true);
-            PaperUITheme.StyleButton(button);
+            PaperUITheme.StyleSolidButton(button, background);
             return button;
         }
 

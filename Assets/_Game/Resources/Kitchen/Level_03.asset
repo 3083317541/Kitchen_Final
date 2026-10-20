@@ -28,7 +28,7 @@ MonoBehaviour:
   - item: {fileID: 11400000, guid: 14001a5784665d04b90d3c34c9dcb595, type: 2}
     count: 4
   - item: {fileID: 11400000, guid: ca03e3743a9d9db4486c9eca220c6b6b, type: 2}
-    count: 3
+    count: 2
   - item: {fileID: 11400000, guid: c1e34f1b8f115ea42978963e764f041d, type: 2}
     count: 2
   startingCookers:
@@ -41,15 +41,20 @@ MonoBehaviour:
   - {x: -1, y: -1}
   - {x: 0, y: -1}
   - {x: 1, y: -1}
+  maxConcurrentOrders: 2
   orderSequence:
   - {fileID: 11400000, guid: 4765262b2e0788941ae8a8eff725cb72, type: 2}
   - {fileID: 11400000, guid: 0740f9215f52f9b488168bb36fefc6d7, type: 2}
   - {fileID: 11400000, guid: 0740f9215f52f9b488168bb36fefc6d7, type: 2}
   levelNumber: 3
-  levelTitle: "\u7B2C\u4E09\u5173 \xB7 \u76D8\u5B50\u5FAA\u73AF"
+  levelTitle: "教程三 · 盘子循环与调度"
   nextLevelNumber: 0
   tutorialSteps:
-  - "\u4E0A\u83DC\u4F1A\u6D88\u8017\u5E72\u51C0\u76D8\u5B50\uFF1B\u76D8\u5B50\u8FC7\u4E00\u4F1A\u513F\u4F1A\u810F\u7740\u56DE\u6765\uFF0C\u8981\u7528\u6D17\u7897\u53F0\u6D17\u5E72\u51C0\u3002"
+  - "目标：完成三张订单，练习三名员工的分工与盘子循环。"
+  - "干净盘子只有两个，每次上菜会占用一个；顾客用完后会送回脏盘子。"
+  - "指派员工到洗碗台正面清洗，确保下一张订单有盘可上。"
+  - "利用加热间隙切菜、组装或洗盘，尝试通过设备朝向和共用操作格减少移动。"
+  - "教程完成后可进入经典模式：每天限时营业、持续来单、结算选择技能。"
   rewardMoney: 0
   rewardStaffCount: 0
   rewardCookerIds: []

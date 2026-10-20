@@ -117,7 +117,8 @@ namespace Kitchen.Work
                     continue;
                 }
 
-                strategy.Tick(cooker, deltaTime);
+                strategy.Tick(cooker, deltaTime * (cooker.Definition.WorkType != WorkType.Timed && Runtime.Classic != null
+                    ? Runtime.Classic.Run.WorkMultiplier : 1f));
             }
         }
 

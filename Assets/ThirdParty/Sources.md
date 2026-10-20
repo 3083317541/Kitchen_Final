@@ -1,5 +1,7 @@
 # 第三方素材来源与首批导入记录
 
+主菜单字体另见 `Assets/ThirdParty/GoogleFonts/README.md`：Lilita One 与 Noto Sans SC Bold，均附 SIL OFL 1.1 许可。
+
 首批接入：2026-10-20。仅选用以下 FBX，不包含整包所有格式。
 
 | 作者 / 包 | 来源 | 许可依据 | 本次使用 |

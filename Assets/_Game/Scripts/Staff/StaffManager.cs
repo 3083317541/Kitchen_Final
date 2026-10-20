@@ -235,6 +235,7 @@ namespace Kitchen.Staff
             }
 
             employee.AssignedCookerId = cooker.Id;
+            employee.Facing = cooker.GridPosition - employee.GridPosition;
             employee.View?.FaceTowards(cooker.WorldPosition);
             Runtime.Cookers.Tick(0f);
             return true;
@@ -287,6 +288,13 @@ namespace Kitchen.Staff
             }
 
             Vector2Int target = runtime.GridPosition + direction;
+            runtime.Facing = direction;
+            if (runtime.AssignedCooker != null && runtime.FrontCell != runtime.AssignedCooker.GridPosition)
+            {
+                runtime.AssignedCookerId = 0;
+                Runtime.Cookers.Tick(0f);
+            }
+            runtime.View?.FaceTowards(Runtime.Grid.GridToWorld(target));
             if (!Runtime.Grid.InBounds(target))
             {
                 Runtime.Notify("已经到厨房边缘了。", MessageKind.Warning);
@@ -295,7 +303,14 @@ namespace Kitchen.Staff
 
             if (!Runtime.Grid.IsFreeForStaff(target, runtime.Id))
             {
-                Runtime.Notify("那个格子上已经站着别的厨师了。", MessageKind.Warning);
+                if (Runtime.Grid.GetCookerId(target) != 0)
+                {
+                    Runtime.Notify("已朝向设备；站在正面操作格可自动照看煎锅。", MessageKind.Info);
+                }
+                else
+                {
+                    Runtime.Notify("那个格子上已经站着别的厨师了。", MessageKind.Warning);
+                }
                 return false;
             }
 

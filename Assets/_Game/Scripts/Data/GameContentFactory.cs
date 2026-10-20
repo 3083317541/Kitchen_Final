@@ -258,7 +258,7 @@ namespace Kitchen.Data
             LevelSpec spec = new LevelSpec
             {
                 Number = 1,
-                Title = "第一关 · 沙拉",
+                Title = "教程一 · 站位与沙拉",
                 Next = 2,
                 Money = ChoppingPrice + AssemblyPrice,
                 Staff = 1
@@ -298,7 +298,7 @@ namespace Kitchen.Data
             LevelSpec spec = new LevelSpec
             {
                 Number = 2,
-                Title = "第二关 · 沙拉与汉堡",
+                Title = "教程二 · 煎锅与并行订单",
                 Next = 3,
                 Money = 250,
                 Staff = 2
@@ -323,7 +323,8 @@ namespace Kitchen.Data
             AddOrder(spec, content, "order_salad_plus");
             AddOrder(spec, content, "order_meat_bread");
 
-            spec.Tutorial.Add("煎锅需员工装料启动，之后自动加热；完成后再次指派员工取出，放太久会烧焦。");
+            spec.Tutorial.Add("煎锅装料后可离开；员工站在正面操作格、面朝锅时自动关火，空闲时自动取出。");
+            spec.Tutorial.Add("两张订单独立计时，可任意顺序上菜。黄环完成后开始红环，红环满即烤糊。");
             spec.Tutorial.Add("生肉要先在切菜台切成生肉片，再放进煎锅煎成熟肉片。");
             spec.Tutorial.Add("汉堡需要 菜片 + 番茄片 + 熟肉片 + 面包片，四样缺一不可。");
 
@@ -342,7 +343,7 @@ namespace Kitchen.Data
             LevelSpec spec = new LevelSpec
             {
                 Number = 3,
-                Title = "第三关 · 盘子循环",
+                Title = "教程三 · 盘子循环与调度",
                 Next = 0,
                 Money = 300,
                 Staff = 3
@@ -356,7 +357,7 @@ namespace Kitchen.Data
             AddItem(spec, content, Ids.Tomato, 4);
             AddItem(spec, content, Ids.Bread, 4);
             AddItem(spec, content, Ids.RawMeat, 4);
-            AddItem(spec, content, Ids.CleanPlate, 3);
+            AddItem(spec, content, Ids.CleanPlate, 2);
             AddItem(spec, content, Ids.DirtyPlate, 2);
 
             spec.Placements.Add(new CookerPlacement(content.Cooker(Ids.FryingPan), new Vector2Int(4, 4)));
@@ -501,6 +502,8 @@ namespace Kitchen.Data
                 spec.RewardMoney,
                 spec.RewardStaff,
                 spec.RewardCookers);
+
+            level.SetConcurrentOrders(spec.Number == 1 && spec.Title != "Sandbox" ? 1 : 2);
 
             return level;
         }

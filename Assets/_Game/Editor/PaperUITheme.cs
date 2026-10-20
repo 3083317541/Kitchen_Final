@@ -141,6 +141,12 @@ namespace Kitchen.EditorTools
             button.gameObject.AddComponent<PaperButtonMotion>().Configure(visual);
         }
 
+        public static void StyleSolidButton(Button button, Color color)
+        {
+            StyleButton(button);
+            PaperButtonStyle.Apply(button, color);
+        }
+
         public static void AddPaperclip(Transform panel, TMP_FontAsset font)
         {
             RectTransform hit = Rect(panel, "BreadPaperclip", new Vector2(82f, 132f), new Vector2(-112f, 65f));

@@ -87,6 +87,16 @@ namespace Kitchen.Cookers
 
         public float ReadySeconds { get; internal set; }
 
+        public bool HeatStopped { get; internal set; }
+
+        public bool IsOvercooking => Definition != null && Definition.WorkType == WorkType.Timed &&
+            HasAnyOutput && !HeatStopped;
+
+        public float EffectiveBurnGraceDuration => Definition.BurnGraceDuration * (Owner?.Classic?.Run.HeatGraceMultiplier ?? 1f);
+
+        public float BurnProgress => IsOvercooking ? Mathf.Clamp01(ReadySeconds / EffectiveBurnGraceDuration) :
+            State == CookerState.Burnt ? 1f : 0f;
+
         public bool IsHeating => Definition != null && Definition.WorkType == WorkType.Timed &&
             LockedRecipe != null && State == CookerState.Working;
 

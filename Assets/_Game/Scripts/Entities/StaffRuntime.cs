@@ -39,6 +39,10 @@ namespace Kitchen.Entities
 
         public int AssignedCookerId { get; internal set; }
 
+        public Vector2Int Facing { get; internal set; } = Vector2Int.up;
+
+        public Vector2Int FrontCell => GridPosition + Facing;
+
         public Cookers.CookerRuntime AssignedCooker =>
             Owner != null && Owner.Cookers != null ? Owner.Cookers.GetCooker(AssignedCookerId) : null;
 

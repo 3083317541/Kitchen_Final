@@ -15,7 +15,7 @@
 - 使用 **Built-in Render Pipeline**、旧 Input Manager、uGUI、TextMeshPro。不要为素材导入自行升级 Unity、迁移渲染管线或输入系统。
 - 开始场景：Assets/_Game/Scenes/MainMenu.unity。
 - 游戏场景：Assets/_Game/Scenes/Kitchen.unity。
-- 关卡配置：Assets/_Game/Resources/Kitchen/Level_01.asset 至 Level_03.asset。
+- 教程配置：Assets/_Game/Resources/Kitchen/Level_01.asset 至 Level_03.asset；经典模式配置：Level_Classic.asset。
 - 先读 README.md；详细说明在 Assets/_Game/Art/工程说明.md、说明书_UI_数值_Prefab.md。
 - 美术资源替换指南.md 有部分说明可能落后于代码，字段、层级和实际行为以当前脚本为准。
 
@@ -39,7 +39,11 @@
 - UI 调用 GameRuntime 接口，不直接修改库存、订单或厨具数据。
 - 厨具有四向朝向，员工只在正面相邻的操作格工作；员工和厨具不共格。多台设备可以共用操作格，但一次只能站一人，员工到位后明确指定一台设备。网格规则负责通行，美术碰撞体不能替代占用判断。
 - 建造时按 R 旋转预览，选中或移动厨具时按 R 旋转实物；旋转释放任务并保留人工加工进度。操作格不额外登记占用，避免阻止共享；加热批次未处理完时禁止旋转。
-- 切菜、组装、清洗需要持续操作，离开保留进度；加热类由 WorkManager 统一推进装料、自动加热、待取、焦糊与清理，装料后释放员工任务，收取需再次指派员工。
+- 切菜、组装、清洗需要持续操作，离开保留进度；加热类由 WorkManager 统一推进装料、自动加热、过火、关火待取、焦糊与清理。员工到达正面操作格且逻辑面前一格覆盖锅时自动关火；空闲时自动取出，不抢其他主动任务，也不自动开下一批。
+- 员工朝向由 StaffRuntime.Facing/FrontCell 表示，不从美术 Transform 推断；移动和指派同步逻辑朝向。加热黄环完成后红环从零累积，满圈烤糊；关火后的成品不会继续烤糊。
+- OrderManager 管理并行订单；教程第一关一张、后两关两张，有限清单全部完成才通关，超时原位重发。经典模式循环菜单持续补单，超时换新单，打烊后停止发单和交付。UI 经 GameRuntime.TrySubmitOrder(order) 操作，禁止直接扣库存。
+- ClassicDayController 由 GameRuntime 创建并推进，管理简报/营业/结算，技能和跨天数据由 ClassicProgress 保存于本次运行内。每日 180 秒默认值来自 LevelConfig.serviceDuration，计时与生产只在营业期推进。基础原料无限仅用于经典模式，盘子与半成品保持有限；技能通过运行时倍率生效，禁止修改共享配方或设备资产。详见经典模式与教程关卡设计.md。
+- 经典模式首日空场，所有设备由玩家购买；报价统一经 GameRuntime.GetCookerPrice，按设备定义 ID 累计成功购买次数，每台增加原价的 25%（关卡可配），总价向上取整。取消/失败不计数，拆除不降价，跨天免费恢复不重复计数；教程保持原价，禁止修改共享 CookerDefinition.Price。
 
 ## UI 视觉与重构约定
 

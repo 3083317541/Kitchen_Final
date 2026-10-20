@@ -29,17 +29,19 @@ MonoBehaviour:
   staffCount: 1
   staffSpawnOffsets:
   - {x: 0, y: -1}
+  maxConcurrentOrders: 1
   orderSequence:
   - {fileID: 11400000, guid: cfcad363351ee7e49970a9243af02f29, type: 2}
   - {fileID: 11400000, guid: 4765262b2e0788941ae8a8eff725cb72, type: 2}
   levelNumber: 1
-  levelTitle: "\u7B2C\u4E00\u5173 \xB7 \u6C99\u62C9"
+  levelTitle: "教程一 · 站位与沙拉"
   nextLevelNumber: 2
   tutorialSteps:
-  - "\u7B2C\u4E00\u6B65\uFF1A\u7528\u9F20\u6807\u5DE6\u952E\u9009\u4E2D\u53A8\u5E08\uFF0C\u518D\u70B9\u51FB\u5730\u9762\u4E0A\u7684\u7A7A\u683C\u5B50\u628A\u4ED6\u653E\u4E0B\u3002"
-  - "\u7B2C\u4E8C\u6B65\uFF1A\u5728\u5DE6\u4FA7\u5546\u5E97\u8D2D\u4E70\u5207\u83DC\u53F0\uFF0C\u7136\u540E\u70B9\u51FB\u4E00\u4E2A\u7A7A\u683C\u5B50\u653E\u7F6E\u3002"
-  - "\u7B2C\u4E09\u6B65\uFF1A\u540C\u6837\u65B9\u5F0F\u8D2D\u4E70\u5E76\u653E\u7F6E\u7EC4\u88C5\u53F0\u3002"
-  - "\u7B2C\u56DB\u6B65\uFF1A\u8BA9\u53A8\u5E08\u7AD9\u5728\u53A8\u5177\u6240\u5728\u7684\u683C\u5B50\u4E0A\uFF0C\u53A8\u5177\u624D\u4F1A\u5F00\u59CB\u5DE5\u4F5C\u3002"
+  - "目标：完成固定沙拉订单，学习购买设备和安排员工。"
+  - "左键选中员工，用 WASD 走到设备箭头指示的正面操作格；员工不能进入设备格。"
+  - "购买切菜台与组装台，R 可旋转；两台设备可共用操作格，但一次只操作一台。"
+  - "右键设备选择配方，到位后左键点击设备开始；离开会暂停人工加工并保留进度。"
+  - "准备好沙拉和干净盘子后点击上菜，完成所有订单进入下一课。"
   rewardMoney: 0
   rewardStaffCount: 1
   rewardCookerIds:

@@ -36,17 +36,19 @@ MonoBehaviour:
   staffSpawnOffsets:
   - {x: -1, y: -1}
   - {x: 1, y: -1}
+  maxConcurrentOrders: 2
   orderSequence:
   - {fileID: 11400000, guid: 4765262b2e0788941ae8a8eff725cb72, type: 2}
   - {fileID: 11400000, guid: 0740f9215f52f9b488168bb36fefc6d7, type: 2}
   levelNumber: 2
-  levelTitle: "\u7B2C\u4E8C\u5173 \xB7 \u6C99\u62C9\u4E0E\u6C49\u5821"
+  levelTitle: "教程二 · 煎锅与并行订单"
   nextLevelNumber: 3
   tutorialSteps:
-  - "\u714E\u9505\u662F\u6709\u706B\u7684\u53A8\u5177\uFF1A\u53A8\u5E08\u5FC5\u987B\u4E00\u76F4\u7AD9\u5728\u4E0A\u9762\uFF0C\u8D70\u5F00\u5C31\u4F1A\u6682\u505C\u52A0\u5DE5\u3002"
-  - "\u751F\u8089\u8981\u5148\u5728\u5207\u83DC\u53F0\u5207\u6210\u751F\u8089\u7247\uFF0C\u518D\u653E\u8FDB\u714E\u9505\u714E\u6210\u719F\u8089\u7247\u3002"
-  - "\u6C49\u5821\u9700\u8981 \u83DC\u7247 + \u756A\u8304\u7247 + \u719F\u8089\u7247
-    + \u9762\u5305\u7247\uFF0C\u56DB\u6837\u7F3A\u4E00\u4E0D\u53EF\u3002"
+  - "目标：同时处理沙拉与肉面包订单，学习利用无人加热的时间。"
+  - "煎锅先指派员工装料，加热时可离开，去切菜或组装。"
+  - "回来站在正面操作格，按朝向锅的 WASD：完成后自动关火，空闲时自动取出。"
+  - "黄环完成后开始红色过火环，红环满会烤糊；焦糊需再指派员工清理。"
+  - "两张订单独立计时，可以先上任意一张；教程超时只重试该张。"
   rewardMoney: 0
   rewardStaffCount: 1
   rewardCookerIds:

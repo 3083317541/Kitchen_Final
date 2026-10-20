@@ -248,6 +248,8 @@ namespace Kitchen.EditorTools
             ScenarioCookerControls();
             ScenarioScheduling();
             ScenarioOperationPositions();
+            ScenarioParallelOrders();
+            ScenarioAutomaticHeat();
             ScenarioSceneScriptGuids();
             ScenarioFinalConsistency();
         }
@@ -2173,7 +2175,12 @@ namespace Kitchen.EditorTools
             OrderManager.OrderStatus active = runtime.Orders.Current;
             int failedBefore = runtime.Orders.FailedOrders;
             int moneyBeforeTimeout = runtime.Money;
-            Advance(active.Definition.TimeLimit + 1f);
+            float timeoutStep = active.TimeRemaining + 0.05f;
+            foreach (OrderManager.OrderStatus other in runtime.Orders.ActiveOrders)
+            {
+                if (other != active) other.TimeRemaining = timeoutStep + other.TimeLimit;
+            }
+            runtime.Orders.Tick(timeoutStep);
             bool failed = runtime.Orders.FailedOrders == failedBefore + 1;
             bool replaced = runtime.Orders.Current != null && runtime.Orders.Current.IsActive;
             Expect("order_timeout", failed && replaced && runtime.Money == moneyBeforeTimeout,
@@ -2509,6 +2516,158 @@ namespace Kitchen.EditorTools
                 FaceCooker(chopping, choppingFacing);
                 FaceCooker(pan, panFacing);
                 chopping.PreferredRecipeId = preferredRecipe;
+            }
+        }
+
+        private static void ScenarioParallelOrders()
+        {
+            ResetInventory();
+            ParkAllStaff();
+            runtime.Orders.ApplyLevel(runtime.Level);
+            runtime.Orders.StartFirstOrder();
+            var orders = runtime.Orders;
+            Expect("parallel_orders_two_issued", orders.ActiveOrders.Count == 2,
+                "two independently identified orders are active at level start.");
+            if (orders.ActiveOrders.Count < 2) return;
+            var first = orders.ActiveOrders[0];
+            var second = orders.ActiveOrders[1];
+            float firstTime = first.TimeRemaining;
+            float secondTime = second.TimeRemaining;
+            orders.Tick(1.5f);
+            Expect("parallel_orders_both_timers", Mathf.Approximately(first.TimeRemaining, firstTime - 1.5f) &&
+                Mathf.Approximately(second.TimeRemaining, secondTime - 1.5f), "every active order ages independently in the same tick.");
+            runtime.GrantItem(second.Dish, second.DishRequired);
+            int stock = runtime.Inventory.TotalCount(second.Dish);
+            int money = runtime.Money;
+            Expect("parallel_orders_failed_delivery_preserves_stock", !runtime.TrySubmitOrder(second) &&
+                runtime.Inventory.TotalCount(second.Dish) == stock && runtime.Money == money,
+                "a missing plate refuses a chosen order before consuming its food.");
+            runtime.GrantItem(runtime.CleanPlate, second.PlatesRequired);
+            int returns = runtime.PlateReturns.PendingCount;
+            bool served = runtime.TrySubmitOrder(second);
+            Expect("parallel_orders_serve_second_first", served && second.State == OrderState.Completed &&
+                orders.Current == first && first.IsActive && Mathf.Approximately(first.TimeRemaining, firstTime - 1.5f),
+                "the second order may be served first without resetting the first order timer.");
+            Expect("parallel_orders_reward_and_plates_once", runtime.Money == money + second.Reward &&
+                runtime.PlateReturns.PendingCount == returns + second.PlatesRequired && !runtime.TrySubmitOrder(second) &&
+                runtime.Money == money + second.Reward, "a settled ticket cannot consume or pay a second time.");
+            Expect("parallel_orders_refill_slot", orders.ActiveOrders.Count == 2 && orders.ActiveOrders[1].SequenceIndex == 2,
+                "settling a ticket fills its vacancy from the remaining finite sequence.");
+            var third = orders.ActiveOrders[1];
+            float thirdTime = third.TimeRemaining;
+            first.TimeRemaining = 0.05f;
+            int failed = orders.FailedOrders;
+            money = runtime.Money;
+            orders.Tick(0.1f);
+            Expect("parallel_orders_timeout_isolated", first.State == OrderState.Failed && orders.FailedOrders == failed + 1 &&
+                orders.ActiveOrders[0] != first && orders.ActiveOrders[0].SequenceIndex == first.SequenceIndex &&
+                orders.ActiveOrders[1] == third && Mathf.Approximately(third.TimeRemaining, thirdTime - 0.1f) && runtime.Money == money,
+                "only the expired order is retried; the other timer, sequence identity and reward remain intact.");
+            Expect("parallel_orders_stale_retry_rejected", !runtime.TrySubmitOrder(first), "an expired ticket cannot serve its replacement.");
+            int clears = 0;
+            Action onCleared = () => clears++;
+            orders.LevelCleared += onCleared;
+            try
+            {
+                while (orders.ActiveOrders.Count > 0)
+                {
+                    var order = orders.ActiveOrders[orders.ActiveOrders.Count - 1];
+                    runtime.GrantItem(order.Dish, order.DishRequired);
+                    runtime.GrantItem(runtime.CleanPlate, order.PlatesRequired);
+                    if (!runtime.TrySubmitOrder(order)) break;
+                }
+                Expect("parallel_orders_clear_after_all", orders.IsLevelCleared && orders.CompletedOrders == orders.OrderCount &&
+                    orders.ActiveOrders.Count == 0 && clears == 1 && !runtime.TrySubmitOrder(second),
+                    "out-of-order completion clears the finite level once, after every entry succeeds.");
+            }
+            finally
+            {
+                orders.LevelCleared -= onCleared;
+                ResetInventory();
+            }
+        }
+
+        private static void ScenarioAutomaticHeat()
+        {
+            ResetInventory();
+            ParkAllStaff();
+            CookerRuntime pan = FindCooker(GameContentFactory.Ids.FryingPan);
+            StaffRuntime employee = runtime.AllStaff[0];
+            ItemDefinition raw = Item(GameContentFactory.Ids.RawMeatSlice);
+            ItemDefinition cooked = Item(GameContentFactory.Ids.CookedMeatSlice);
+            try
+            {
+                runtime.GrantItem(raw, 2);
+                MoveStaffTo(0, pan.GridPosition);
+                Advance(pan.Definition.PreparationDuration + pan.Definition.Duration + pan.Definition.CollectionDuration + 0.2f);
+                Expect("heat_attended_auto_collect", runtime.Inventory.TotalCount(cooked) == 1 && !pan.HasAnyOutput &&
+                    employee.AssignedCookerId == 0, "an arrived, forward-facing employee stops and collects without another click.");
+                Advance(1f);
+                Expect("heat_auto_collect_no_restart", pan.LockedRecipe == null && runtime.Inventory.TotalCount(raw) == 1,
+                    "automatic collection does not start another batch.");
+
+                ResetInventory();
+                runtime.GrantItem(raw, 1);
+                MoveStaffTo(0, pan.GridPosition);
+                Advance(pan.Definition.PreparationDuration + 0.1f);
+                ParkAllStaff();
+                Advance(pan.Definition.Duration + 0.1f);
+                Expect("heat_red_phase_starts_after_completion", pan.HasAnyOutput && pan.IsOvercooking &&
+                    pan.WorkProgress == 1f && pan.BurnProgress < 0.1f && !pan.HeatStopped,
+                    "the normal ring finishes before the new overcook ring begins.");
+                Advance(pan.Definition.BurnGraceDuration * 0.3f);
+                Expect("heat_red_phase_advances", pan.BurnProgress > 0.25f && pan.BurnProgress < 0.5f,
+                    "the red ring accumulates elapsed overcook time rather than staying full.");
+                Relocate(employee, pan.WorkPosition);
+                SetPrivateProperty(employee, "Facing", pan.WorkPosition - pan.GridPosition);
+                Advance(0.1f);
+                Expect("heat_back_facing_cannot_stop", !pan.HeatStopped && pan.IsOvercooking,
+                    "occupying the work position with the back facing the pan does not stop it.");
+                bool steppedIntoPan = runtime.Staff.TryMove(employee, pan.GridPosition - employee.GridPosition);
+                Expect("heat_blocked_step_turns_toward_pan", !steppedIntoPan && employee.GridPosition == pan.WorkPosition &&
+                    employee.FrontCell == pan.GridPosition && !employee.IsMoving,
+                    "an actual move intent can face the pan without entering its occupied cell.");
+                SetPrivateProperty(employee, "IsMoving", true);
+                runtime.Cookers.Tick(0f);
+                runtime.Work.GetStrategy(WorkType.Timed).Tick(pan, 0.05f);
+                Expect("heat_travelling_cannot_stop", !pan.HeatStopped, "a travelling employee cannot stop the heat before arriving.");
+                SetPrivateProperty(employee, "IsMoving", false);
+                Advance(0.05f);
+                Expect("heat_return_auto_stop", pan.HeatStopped && !pan.IsOvercooking && pan.State == CookerState.Collecting,
+                    "returning with the pan in the front cell stops heat and begins collection without a click.");
+                ParkAllStaff();
+                Advance(pan.Definition.BurnGraceDuration + 1f);
+                Expect("heat_stopped_stays_safe", pan.HeatStopped && pan.HasAnyOutput && pan.State != CookerState.Burnt,
+                    "once stopped, food remains safe after the employee leaves.");
+                Relocate(employee, pan.WorkPosition);
+                SetPrivateProperty(employee, "Facing", pan.GridPosition - employee.GridPosition);
+                Advance(pan.Definition.CollectionDuration + 0.1f);
+                Expect("heat_safe_collect_once", runtime.Inventory.TotalCount(cooked) == 1 && !pan.HasAnyOutput,
+                    "returning resumes collection and credits the finished food once.");
+
+                ResetInventory();
+                runtime.GrantItem(raw, 1);
+                MoveStaffTo(0, pan.GridPosition);
+                Advance(pan.Definition.PreparationDuration + 0.1f);
+                ParkAllStaff();
+                Advance(pan.Definition.Duration + pan.Definition.BurnGraceDuration + 0.3f);
+                Expect("heat_red_full_burns_food", pan.State == CookerState.Burnt && pan.BurnProgress == 1f &&
+                    !pan.HasAnyOutput && runtime.Inventory.TotalCount(cooked) == 0,
+                    "an unattended pan loses its food when the red ring reaches a full turn.");
+                Relocate(employee, pan.WorkPosition);
+                SetPrivateProperty(employee, "Facing", pan.GridPosition - employee.GridPosition);
+                Advance(0.2f);
+                Expect("heat_burnt_requires_explicit_cleaning", pan.State == CookerState.Burnt && !pan.IsActive &&
+                    pan.WorkProgress == 0f, "front coverage does not automatically clear a burnt pan.");
+                runtime.Staff.TryAssignCooker(employee, pan);
+                Advance(pan.Definition.CleaningDuration + 0.1f);
+                Expect("heat_burnt_recovers", pan.State == CookerState.Idle && !pan.HasAnyOutput && !pan.HeatStopped,
+                    "explicit cleaning restores the pan for another batch.");
+            }
+            finally
+            {
+                ResetInventory();
+                ParkAllStaff();
             }
         }
 

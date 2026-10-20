@@ -23,6 +23,7 @@ namespace Kitchen.Data
 
         [Header("Economy")]
         [SerializeField, Min(0)] private int startingMoney = 500;
+        [SerializeField, Range(1, 100)] private int classicCookerPriceIncreasePercent = 25;
 
         [Header("Starting Stock")]
         [SerializeField] private List<ItemStack> startingInventory = new List<ItemStack>();
@@ -35,6 +36,9 @@ namespace Kitchen.Data
         [SerializeField] private List<Vector2Int> staffSpawnOffsets = new List<Vector2Int>();
 
         [Header("Orders")]
+        [SerializeField] private bool classicMode;
+        [SerializeField, Min(10f)] private float serviceDuration = 180f;
+        [SerializeField, Range(1, 2)] private int maxConcurrentOrders = 2;
         [Tooltip("Orders are issued in this order. The level is cleared once every entry has been completed; the list does not wrap.")]
         [SerializeField] private List<OrderDefinition> orderSequence = new List<OrderDefinition>();
 
@@ -79,6 +83,7 @@ namespace Kitchen.Data
         public float GroundHeight => groundHeight;
 
         public int StartingMoney => Mathf.Max(0, startingMoney);
+        public int ClassicCookerPriceIncreasePercent => Mathf.Clamp(classicCookerPriceIncreasePercent, 1, 100);
 
         public IReadOnlyList<ItemStack> StartingInventory => startingInventory;
 
@@ -89,6 +94,14 @@ namespace Kitchen.Data
         public IReadOnlyList<Vector2Int> StaffSpawnOffsets => staffSpawnOffsets;
 
         public IReadOnlyList<OrderDefinition> OrderSequence => orderSequence;
+
+        public int MaxConcurrentOrders => Mathf.Clamp(maxConcurrentOrders, 1, 2);
+
+        public bool IsClassicMode => classicMode;
+
+        public float ServiceDuration => Mathf.Max(10f, serviceDuration);
+
+        public void SetConcurrentOrders(int count) { maxConcurrentOrders = Mathf.Clamp(count, 1, 2); }
 
         /// <summary>1-based level number, also the Resources asset suffix.</summary>
         public int LevelNumber => Mathf.Max(1, levelNumber);
