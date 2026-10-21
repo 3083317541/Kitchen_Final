@@ -574,6 +574,17 @@ namespace Kitchen.EditorTools
                 return null;
             }
 
+            // The committed CJK font comes first. It lives in version control together with its .meta, so
+            // every machine resolves the same guid; the machine-local fallback below was how the scene
+            // ended up referencing a font that only existed on the machine that generated it.
+            TMP_FontAsset committed = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
+                KitchenHudFont.FontAssetPath);
+
+            if (committed != null && committed.IsUsable())
+            {
+                return committed;
+            }
+
             // The font the demo generated for itself, if a previous run created one.
             TMP_FontAsset existing = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(ChineseFontPath);
             if (existing != null && existing.IsUsable())
