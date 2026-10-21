@@ -109,6 +109,7 @@ namespace Kitchen.UI
         private readonly List<Button> cookerButtonsBound = new List<Button>();
 
         public GameRuntime Runtime => runtime;
+        public KitchenPauseMenu PauseMenu { get; private set; }
 
         /// <summary>Container that shows the end of level summary.</summary>
         public GameObject LevelClearPanel => levelClearPanel;
@@ -138,6 +139,12 @@ namespace Kitchen.UI
                     dayPanel = canvas.GetComponent<KitchenDayPanel>();
                     if (dayPanel == null) dayPanel = canvas.gameObject.AddComponent<KitchenDayPanel>();
                     dayPanel.Initialize(runtime, orderTitleText, submitOrderButton, orderPanel.GetComponent<Image>());
+                    if (PauseMenu == null)
+                    {
+                        PauseMenu = gameObject.AddComponent<KitchenPauseMenu>();
+                        PauseMenu.Initialize(runtime, orderTitleText, submitOrderButton, orderPanel.GetComponent<Image>(),
+                            hudScaler != null ? hudScaler : canvas.GetComponent<HudScaler>());
+                    }
                 }
             }
             if (moneyText != null) moneyText.GetComponent<PaperMoneyFeedback>()?.ResetValue();

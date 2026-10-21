@@ -93,11 +93,13 @@ namespace Kitchen.Runtime
 
         private bool initialized;
         private bool levelStarted;
+        private float resumeTimeScale = 1f;
         private LevelConfig classicLevelInstance;
         public ClassicDayController Classic { get; private set; }
         public bool TutorialBriefingOpen { get; private set; }
-        public bool CanArrangeKitchen => Classic == null || Classic.CanArrange;
-        public bool CanOperateKitchen => !TutorialBriefingOpen && (Classic == null || Classic.Phase == DayPhase.Service);
+        public bool IsPaused { get; private set; }
+        public bool CanArrangeKitchen => !IsPaused && (Classic == null || Classic.CanArrange);
+        public bool CanOperateKitchen => !IsPaused && !TutorialBriefingOpen && (Classic == null || Classic.Phase == DayPhase.Service);
 
         /// <summary>Money the player currently holds.</summary>
         public int Money { get; private set; }
@@ -170,6 +172,7 @@ namespace Kitchen.Runtime
 
         private void OnDestroy()
         {
+            if (IsPaused) Time.timeScale = resumeTimeScale;
             ShutdownSystems();
 
             if (Instance == this)
@@ -303,6 +306,7 @@ namespace Kitchen.Runtime
             {
                 inputManager.BuildRequested += OnBuildRequested;
                 inputManager.CancelRequested += OnCancelRequested;
+                inputManager.PauseRequested += OnPauseRequested;
                 inputManager.MoveCookerRequested += OnMoveCookerRequested;
                 inputManager.MoveStaffRequested += OnMoveStaffRequested;
                 inputManager.CookerContextRequested += OnCookerContextRequested;
@@ -331,7 +335,7 @@ namespace Kitchen.Runtime
 
         public bool BeginTutorialPractice()
         {
-            if (!TutorialBriefingOpen) return false;
+            if (IsPaused || !TutorialBriefingOpen) return false;
             TutorialBriefingOpen = false;
             orderManager?.StartFirstOrder();
             uiManager?.RefreshAll();
@@ -340,22 +344,55 @@ namespace Kitchen.Runtime
 
         public bool BeginClassicService()
         {
-            bool started = Classic != null && Classic.BeginService();
+            bool started = !IsPaused && Classic != null && Classic.BeginService();
             if (started) uiManager?.RefreshAll();
             return started;
         }
 
         public bool ChooseClassicSkill(KitchenSkill skill)
         {
-            if (Classic == null || !Classic.ChooseSkill(skill)) return false;
+            if (IsPaused || Classic == null || !Classic.ChooseSkill(skill)) return false;
             UnityEngine.SceneManagement.SceneManager.LoadScene(Kitchen.Level.LevelManager.KitchenSceneName);
             return true;
         }
 
         public void ReturnToMainMenu()
         {
+            SetPaused(false);
             ClassicProgress.Leave();
             UnityEngine.SceneManagement.SceneManager.LoadScene(Kitchen.Level.LevelManager.MenuSceneName);
+        }
+
+        public void QuitGame()
+        {
+            SetPaused(false);
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
+
+        public void SetPaused(bool paused)
+        {
+            if (IsPaused == paused) return;
+            if (paused) inputManager?.CancelCurrentInteraction();
+            IsPaused = paused;
+            if (paused)
+            {
+                resumeTimeScale = Time.timeScale;
+                Time.timeScale = 0f;
+            }
+            else Time.timeScale = resumeTimeScale;
+            inputManager?.SetPauseMenuOpen(paused);
+            uiManager?.PauseMenu?.SetVisible(paused);
+            uiManager?.RefreshAll();
+        }
+
+        private void OnPauseRequested()
+        {
+            if (uiManager != null && uiManager.PauseMenu != null) uiManager.PauseMenu.HandleEscape();
+            else SetPaused(!IsPaused);
         }
 
         private LevelConfig ResolveLevelConfig()
@@ -447,7 +484,7 @@ namespace Kitchen.Runtime
                 return;
             }
 
-            AdvanceFrame(Time.deltaTime, 1f);
+            AdvanceFrame(Time.unscaledDeltaTime, IsPaused ? 1f : Time.timeScale);
         }
 
         /// <summary>
@@ -473,11 +510,14 @@ namespace Kitchen.Runtime
                 return;
             }
 
+            bool wasPaused = IsPaused;
+            inputManager?.Tick(deltaTime, !TutorialBriefingOpen && (Classic == null || Classic.CanArrange));
+            if (wasPaused || IsPaused) return;
+
             if (TutorialBriefingOpen || (Classic != null && Classic.Phase != DayPhase.Service))
             {
                 if (!TutorialBriefingOpen && Classic.CanArrange)
                 {
-                    inputManager?.Tick(deltaTime);
                     staffManager?.Tick(deltaTime);
                     cookerManager?.Tick(0f);
                 }
@@ -486,9 +526,6 @@ namespace Kitchen.Runtime
             }
             if (Classic != null) deltaTime = Mathf.Min(deltaTime, Classic.RemainingSeconds);
             ElapsedTime += deltaTime;
-
-            // Input is sampled once per frame, then interpreted. Managers never read input devices.
-            inputManager?.Tick(deltaTime);
 
             // Fixed advancement order: cookers work, plates come back, orders age, characters walk,
             // then activation is refreshed from the grid before the UI reads the result.
@@ -509,6 +546,7 @@ namespace Kitchen.Runtime
             {
                 inputManager.BuildRequested -= OnBuildRequested;
                 inputManager.CancelRequested -= OnCancelRequested;
+                inputManager.PauseRequested -= OnPauseRequested;
                 inputManager.MoveCookerRequested -= OnMoveCookerRequested;
                 inputManager.MoveStaffRequested -= OnMoveStaffRequested;
                 inputManager.CookerContextRequested -= OnCookerContextRequested;
@@ -787,7 +825,8 @@ namespace Kitchen.Runtime
         /// </summary>
         public void SetTimeScale(float scale)
         {
-            Time.timeScale = Mathf.Clamp(scale, 0.01f, 100f);
+            if (IsPaused) resumeTimeScale = Mathf.Clamp(scale, 0.01f, 100f);
+            else Time.timeScale = Mathf.Clamp(scale, 0.01f, 100f);
         }
 
         /// <summary>Real time scale used by <see cref="Update"/>.</summary>

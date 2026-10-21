@@ -563,6 +563,7 @@ namespace Kitchen.EditorTools
         /// </summary>
         public static TMP_FontAsset EnsureFontAsset()
         {
+            if (File.Exists(KitchenHudFonts.SourcePath)) return KitchenHudFonts.Chinese;
             // Touching TMP_Settings before its resources exist makes TextMeshPro pop a package
             // importer window, which is noisy and useless in a batch run. Detect that case instead.
             if (TMP_Settings.instance == null)

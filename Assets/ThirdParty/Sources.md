@@ -1,6 +1,6 @@
 # 第三方素材来源与首批导入记录
 
-主菜单字体另见 `Assets/ThirdParty/GoogleFonts/README.md`：Lilita One 与 Noto Sans SC Bold，均附 SIL OFL 1.1 许可。
+界面字体另见 `Assets/ThirdParty/GoogleFonts/README.md`：主菜单使用 Lilita One 与 Noto Sans SC Bold，局内使用站酷快乐体（ZCOOL KuaiLe）及 Noto Sans SC Bold 回退，均附 SIL OFL 1.1 许可。
 
 首批接入：2026-10-20。仅选用以下 FBX，不包含整包所有格式。
 

@@ -166,6 +166,10 @@ namespace Kitchen.EditorTools
             PaperUISettings.SetMotion(true);
             MainMenuController controller = UnityEngine.Object.FindObjectOfType<MainMenuController>();
             Add("controller_and_expected_buttons_present", controller != null && FindButton("StartButton") != null && FindButton("ClassicModeButton") != null && FindButton("SettingsButton") != null);
+            Button quit = FindButton("QuitButton");
+            Add("quit_game_button_present_and_wired", quit != null && quit.GetComponentInChildren<TMP_Text>().text == "退出游戏" &&
+                new SerializedObject(controller).FindProperty("quitButton").objectReferenceValue == quit);
+            KitchenButtonVerifier.Verify(quit.transform, Add);
             TMP_Text title = UnityEngine.Object.FindObjectsOfType<TMP_Text>().First(label => label.name == "TitleText");
             Add("english_title_survives_controller_refresh", title.text == "KITCHEN" && title.font.name.Contains("Lilita"));
             Add("all_menu_glyphs_available", UnityEngine.Object.FindObjectsOfType<TMP_Text>(true).All(label => label.font.HasCharacters(label.text, out uint[] missing, false, false)));

@@ -1,0 +1,38 @@
+[
+  {
+    "file": "kitchen-club-taptap-landscape-1840x860.png",
+    "width": 1840,
+    "height": 860,
+    "format": "PNG",
+    "mode": "RGB",
+    "bytes": 166811,
+    "visible_text": "KITCHEN CLUB"
+  },
+  {
+    "file": "kitchen-club-taptap-landscape-460x215.png",
+    "width": 460,
+    "height": 215,
+    "format": "PNG",
+    "mode": "RGB",
+    "bytes": 37714,
+    "visible_text": "KITCHEN CLUB"
+  },
+  {
+    "file": "kitchen-club-taptap-portrait-1200x1800.png",
+    "width": 1200,
+    "height": 1800,
+    "format": "PNG",
+    "mode": "RGB",
+    "bytes": 197085,
+    "visible_text": "KITCHEN CLUB"
+  },
+  {
+    "file": "kitchen-club-taptap-portrait-600x900.png",
+    "width": 600,
+    "height": 900,
+    "format": "PNG",
+    "mode": "RGB",
+    "bytes": 96016,
+    "visible_text": "KITCHEN CLUB"
+  }
+]

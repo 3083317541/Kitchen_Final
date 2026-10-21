@@ -23,7 +23,7 @@ namespace Kitchen.EditorTools
             else characters += "’";
             if (chinese)
             {
-                characters += KitchenMenuBuilder.TutorialIntro + KitchenMenuBuilder.ClassicIntro.Replace("\n", "") + "开始教程开始营业";
+                characters += KitchenMenuBuilder.TutorialIntro + KitchenMenuBuilder.ClassicIntro.Replace("\n", "") + "开始教程开始营业退出游戏";
                 foreach (string step in KitchenMenuBuilder.TutorialSteps) characters += step;
                 foreach (string step in KitchenMenuBuilder.ClassicSteps) characters += step;
             }

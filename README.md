@@ -7,6 +7,8 @@
 A top-down 3D kitchen automation demo. Chefs operate one assigned cooker from its front work cell.
 Heating runs unattended after preparation. A chef facing the pan stops the heat and collects the food when idle.
 
+当前定稿宣传资源归档在 `Marketing/Release-2026-10-21/`，包含游戏图标、横竖宣传图、无 Logo 插画、PC 游戏库壁纸、商店简介、来源说明与校验清单；整包为 `Marketing/kitchen-club-release-2026-10-21.zip`。绘制与归档脚本在 `Tools/Branding/`。
+
 ---
 
 ## 快速开始 / Quick start
@@ -24,6 +26,10 @@ Heating runs unattended after preparation. A chef facing the pan stops the heat 
 只更新主菜单时执行 **`Kitchen/UI/Apply Main Menu (Menu Only)`**，不会更新厨房场景。菜单使用项目内的 Lilita One 与 Noto Sans SC Bold 字体，均附 OFL 许可，见 `Assets/ThirdParty/GoogleFonts/README.md`。菜单窄屏自动上下排列；面包回形针可点击互动。
 
 只更新局内界面时执行 **`Kitchen/UI/Apply Kitchen HUD (HUD Only)`**。局内按钮采用纯色圆角：蓝色操作、绿色确认/上菜、灰色次级、珊瑚色出售/退出、淡紫色技能。所有可见操作按钮（包括运行时轮盘、并行订单、每日简报和结算）统一提供悬停提亮与抬升、按压变深与压缩、松手回弹和移出复位；不可用时置灰。关闭弹性动效后保留颜色反馈。白色面板与黄色标题块继续保留。
+
+局内中文使用更饱满的 **站酷快乐体**，少数字形回退到思源黑体 Bold，字体与 OFL 许可随项目分发。只换字、不重建 UI 时执行 **`Kitchen/UI/Apply Kitchen Typography (Fonts Only)`**，保留手工布局、按钮与玩法绑定；动态轮盘、订单、每日简报和结算继承同一字体。主菜单继续使用原字体。
+
+局内按 **Esc** 打开暂停菜单，可继续游戏、调整设置、返回主界面或退出游戏。暂停冻结员工、加工、过火、订单、盘子回收和营业计时，菜单按钮仍有悬停与按压反馈。设置中的音量、HUD 缩放和弹性动效即时生效并保存；暂停菜单使用独立缩放，调整 HUD 时自身保持稳定。在设置或离开确认页按 Esc 先回暂停主页，再按 Esc 继续。建造、移动或轮盘操作中第一次 Esc 仍优先取消当前操作。返回主界面与退出游戏会提示本轮进度不会保存；主界面也提供“退出游戏”按钮。编辑器内退出游戏会停止 Play，打包后会关闭程序。
 
 鼠标悬停按钮时轻微抬升、放大并变色，悬停面包回形针时轻转；移出自动复位。点击教程 / 经典模式先显示简短说明和三条操作提示，再点击 **开始教程 / 开始营业** 才进入游戏。返回箭头或 Esc 回到菜单，不重置当前进度。关闭弹性动效后仍保留按钮颜色反馈。
 
@@ -72,7 +78,8 @@ Heating runs unattended after preparation. A chef facing the pan stops the heat 
 | 右键点击厨具 | 打开加工轮盘，选择具体配方或自动；当前批次完成后应用新选择 |
 | 商店按钮 / 数字键 1-4 | 选择要购买的厨具，再左键点空地放置 |
 | R | 建造时顺时针旋转预览；普通或移动模式下旋转当前选中的厨具 |
-| Esc / 右键 | 取消建造或移动 |
+| Esc | 取消建造、移动或轮盘；没有待取消操作时打开/关闭暂停菜单 |
+| 右键 | 取消建造或移动；普通状态右键机器打开轮盘 |
 | 移动厨具按钮 | 进入移动模式，WASD 或点击相邻格完成移动 |
 | 每张订单的上菜按钮 | 交付对应订单，可先完成第二张（需要成品 + 干净盘子） |
 

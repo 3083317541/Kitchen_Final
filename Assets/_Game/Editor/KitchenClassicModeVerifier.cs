@@ -73,7 +73,8 @@ namespace Kitchen.EditorTools
                 else if (stage == 7) VerifySkills();
                 else if (stage == 8)
                 {
-                    Add("return_menu_ends_classic_run", ClassicProgress.Current == null);
+                    Add("return_menu_ends_classic_run", ClassicProgress.Current == null && Time.timeScale == 1f &&
+                        UnityEngine.Object.FindObjectOfType<KitchenPauseMenu>() == null);
                     FindButton("ClassicModeButton").onClick.Invoke();
                     if (UnityEngine.Object.FindObjectOfType<MainMenuDetails>() != null)
                         FindButton("ClassicConfirmButton").onClick.Invoke();
@@ -108,6 +109,7 @@ namespace Kitchen.EditorTools
                 runtime.Level.LevelTitle.StartsWith("教程") && runtime.TutorialBriefingOpen && runtime.Orders.ActiveOrders.Count == 0);
             runtime.AdvanceFrame(5f);
             Add("tutorial_" + number + "_briefing_pauses_clock", runtime.ElapsedTime == 0f);
+            KitchenPauseMenuVerifier.Verify(runtime, Add, "tutorial_briefing_" + number);
             FindButton("BeginService").onClick.Invoke();
             Add("tutorial_" + number + "_keeps_base_prices", runtime.Cookers.Catalogue.All(definition =>
                 runtime.GetCookerPrice(definition) == definition.Price));
@@ -127,6 +129,7 @@ namespace Kitchen.EditorTools
             ClassicDayController day = runtime.Classic;
             Add("tutorial_completion_enters_classic", day != null && day.Run.Day == 1 && day.Phase == DayPhase.Briefing);
             Add("classic_initial_staff_and_plates", runtime.AllStaff.Count == 2 && runtime.Inventory.TotalCount(runtime.CleanPlate) == 2);
+            KitchenPauseMenuVerifier.Verify(runtime, Add, "classic_briefing");
             Add("classic_starts_empty_with_purchase_budget", runtime.Cookers.Cookers.Count == 0 && runtime.Money == 400 &&
                 runtime.Level.StartingCookers.Count == 0);
             runtime.AdvanceFrame(10f);
@@ -141,6 +144,7 @@ namespace Kitchen.EditorTools
                 !runtime.Inventory.IsUnlimited(runtime.FindItem("tomato_slice")) && !runtime.Inventory.TryConsume(runtime.CleanPlate, 3));
             KitchenButtonVerifier.Verify(UnityEngine.Object.FindObjectOfType<KitchenMachineUI>().transform, Add);
             Capture(runtime, "classic_briefing.png");
+            KitchenHudFonts.VerifyLabels(UnityEngine.Object.FindObjectOfType<KitchenMachineUI>().transform, Add);
             FindButton("ArrangeKitchen").onClick.Invoke();
             Add("briefing_can_be_dismissed_for_building", !FindRect(runtime, "DayFlowOverlay").gameObject.activeSelf &&
                 FindButton("OpenDailyBriefing").gameObject.activeSelf);
@@ -151,6 +155,7 @@ namespace Kitchen.EditorTools
             FindButton("OpenDailyBriefing").onClick.Invoke();
             FindButton("BeginService").onClick.Invoke();
             Add("service_starts_once", day.Phase == DayPhase.Service && runtime.Orders.ActiveOrders.Count == 2 && !runtime.BeginClassicService());
+            KitchenPauseMenuVerifier.Verify(runtime, Add, "classic_service");
             var served = runtime.Orders.ActiveOrders[1];
             Serve(runtime, 1);
             Add("score_reward_and_duplicate_delivery", day.Score == served.Reward && !runtime.TrySubmitOrder(served));
@@ -170,6 +175,7 @@ namespace Kitchen.EditorTools
                 Mathf.Approximately(runtime.ElapsedTime, 180f) && runtime.Orders.ActiveOrders.Count == 0 &&
                 runtime.Input.Mode == Kitchen.Core.InteractionMode.Normal);
             settledScore = day.Score;
+            KitchenPauseMenuVerifier.Verify(runtime, Add, "classic_results");
             settledMoney = runtime.Money;
             Add("settlement_counts_once_and_offers_three_skills", day.Run.TotalScore == day.Score && day.Choices.Count == 3 &&
                 day.Choices.Distinct().Count() == 3 && day.UnservedOrders == 2);
@@ -180,6 +186,7 @@ namespace Kitchen.EditorTools
                 day.Run.TotalScore == settledScore && runtime.Orders.ActiveOrders.Count == 0);
             Add("invalid_skill_rejected", !day.ChooseSkill(KitchenSkill.Recruitment) && day.Run.Day == 1);
             Capture(runtime, "classic_results.png");
+            KitchenHudFonts.VerifyLabels(UnityEngine.Object.FindObjectOfType<KitchenMachineUI>().transform, Add);
             FindButton("SkillChoice_0").onClick.Invoke();
         }
 
@@ -250,7 +257,7 @@ namespace Kitchen.EditorTools
             Add("practice_speeds_manual_pan_preparation", pan.State == CookerState.Working && pan.IsHeating);
             runtime.AdvanceFrame(1000f);
             Add("capped_recruitment_not_offered", !day.Choices.Contains(KitchenSkill.Recruitment));
-            FindButton("ReturnToMenu").onClick.Invoke();
+            KitchenPauseMenuVerifier.ReturnViaMenu(runtime);
         }
 
         private static void VerifyPurchases(GameRuntime runtime)

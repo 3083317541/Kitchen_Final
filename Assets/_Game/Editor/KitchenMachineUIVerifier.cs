@@ -95,6 +95,7 @@ namespace Kitchen.EditorTools
             Add("right_click_intent_opens_wheel_without_assigning_staff", ui.IsOpen && runtime.Input.RecipeMenuOpen && assigned == runtime.Staff.Staff[0].AssignedCookerId);
             Add("all_current_recipes_have_buttons", runtime.Recipes.RecipesFor(cooker.Definition.Kind).All(recipe => ui.transform.GetComponentsInChildren<Button>().Any(button => button.name == recipe.Id)));
             KitchenButtonVerifier.Verify(ui.transform, Add);
+            KitchenHudFonts.VerifyLabels(ui.transform, Add);
             Button tomato = ui.GetComponentsInChildren<Button>().First(button => button.name == "chop_tomato");
             tomato.onClick.Invoke();
             Add("choose_tomato_closes_and_releases_input", cooker.PreferredRecipeId == "chop_tomato" && !ui.IsOpen && !runtime.Input.RecipeMenuOpen);
@@ -162,6 +163,8 @@ namespace Kitchen.EditorTools
             Add("new_recipe_runs_after_current_batch", cooker.LockedRecipe != null && cooker.LockedRecipe.Id == "chop_cabbage");
             Add("automatic_selection_supported", runtime.TrySetCookerRecipe(cooker, null) && cooker.PreferredRecipeId == null);
             ui.OpenRecipes(cooker);
+            KitchenPauseMenuVerifier.VerifyCancellation(runtime, Add);
+            ui.OpenRecipes(cooker);
             cooker.SetPlacement(cooker.GridPosition, cooker.WorldPosition, false);
             ui.SendMessage("LateUpdate");
             Add("removed_machine_closes_wheel_and_hides_badge", !ui.IsOpen && !runtime.Input.RecipeMenuOpen && !badge.gameObject.activeSelf);
@@ -213,6 +216,7 @@ namespace Kitchen.EditorTools
             PaperRingGraphic warning = badge.Find("OvercookProgress").GetComponent<PaperRingGraphic>();
             Add("heat_red_ring_uses_overcook_progress", Mathf.Approximately(normal.Progress, 1f) &&
                 Mathf.Approximately(warning.Progress, 0.5f) && warning.color.r > warning.color.g && !warning.raycastTarget);
+            KitchenPauseMenuVerifier.Verify(runtime, Add, "working_kitchen", true);
             Capture(runtime, "Logs/parallel_orders_overcook.png");
             typeof(CookerRuntime).GetProperty("HeatStopped").SetValue(pan, true);
             ui.SendMessage("LateUpdate");

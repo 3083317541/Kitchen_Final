@@ -91,10 +91,12 @@ namespace Kitchen.EditorTools
             bubble.anchoredPosition = new Vector2(-346f, 142f);
 
             RectTransform home = Rect(cardVisual, "Home", card.sizeDelta, Vector2.zero);
-            Button tutorial = MenuButton(home, "StartButton", "教程", "TUTORIAL", PaperMenuIcon.Shape.Book, 98f, false, chinese, english);
-            Button classic = MenuButton(home, "ClassicModeButton", "经典模式", "CLASSIC MODE", PaperMenuIcon.Shape.Hat, 254f, true, chinese, english);
-            Button settings = MenuButton(home, "SettingsButton", "设置", "SETTINGS", PaperMenuIcon.Shape.Settings, 410f, false, chinese, english);
-            TMP_Text progress = Text(home, "ProgressText", "从第一份沙拉开始", chinese, 21f, new Vector2(530f, 40f), new Vector2(45f, -562f), PaperUITheme.Muted);
+            Button tutorial = MenuButton(home, "StartButton", "教程", "TUTORIAL", PaperMenuIcon.Shape.Book, 90f, false, chinese, english);
+            Button classic = MenuButton(home, "ClassicModeButton", "经典模式", "CLASSIC MODE", PaperMenuIcon.Shape.Hat, 222f, true, chinese, english);
+            Button settings = MenuButton(home, "SettingsButton", "设置", "SETTINGS", PaperMenuIcon.Shape.Settings, 354f, false, chinese, english);
+            Button quit = SmallButton(home, "QuitButton", "退出游戏", chinese, new Vector2(530f, 64f), new Vector2(45f, -488f));
+            PaperButtonStyle.Apply(quit, PaperButtonStyle.Danger);
+            TMP_Text progress = Text(home, "ProgressText", "从第一份沙拉开始", chinese, 21f, new Vector2(530f, 40f), new Vector2(45f, -566f), PaperUITheme.Muted);
             progress.alignment = TextAlignmentOptions.Center;
             BuildSettings(cardVisual, home, settings, chinese, english);
             RectTransform tutorialPage = BuildDetails(cardVisual, "Tutorial", "教程", TutorialIntro, TutorialSteps,
@@ -112,7 +114,7 @@ namespace Kitchen.EditorTools
             SerializedObject serialized = new SerializedObject(controller);
             serialized.FindProperty("startButton").objectReferenceValue = tutorialConfirm;
             serialized.FindProperty("classicButton").objectReferenceValue = classicConfirm;
-            serialized.FindProperty("quitButton").objectReferenceValue = null;
+            serialized.FindProperty("quitButton").objectReferenceValue = quit;
             serialized.FindProperty("progressText").objectReferenceValue = progress;
             serialized.FindProperty("titleText").objectReferenceValue = kitchen;
             serialized.ApplyModifiedPropertiesWithoutUndo();
@@ -214,7 +216,7 @@ namespace Kitchen.EditorTools
 
         private static Button MenuButton(Transform parent, string name, string caption, string subtitle, PaperMenuIcon.Shape icon, float top, bool primary, TMP_FontAsset chinese, TMP_FontAsset english)
         {
-            Button button = SmallButton(parent, name, "", chinese, new Vector2(530f, 132f), new Vector2(45f, -top));
+            Button button = SmallButton(parent, name, "", chinese, new Vector2(530f, 112f), new Vector2(45f, -top));
             Transform visual = button.transform.Find("Visual");
             if (primary) visual.Find("Face").GetComponent<Image>().color = PaperUITheme.Yellow;
             TMP_Text label = visual.Find("Label").GetComponent<TMP_Text>();
@@ -224,10 +226,10 @@ namespace Kitchen.EditorTools
             label.rectTransform.anchorMin = label.rectTransform.anchorMax = new Vector2(0f, 1f);
             label.rectTransform.pivot = new Vector2(0f, 1f);
             label.rectTransform.sizeDelta = new Vector2(320f, 55f);
-            label.rectTransform.anchoredPosition = new Vector2(106f, -24f);
-            Text(visual, "English", subtitle, english, 20f, new Vector2(330f, 31f), new Vector2(108f, -76f), PaperUITheme.TitleInk).characterSpacing = 2f;
-            Icon(visual, "Icon", icon, new Vector2(46f, 46f), new Vector2(33f, -43f), PaperUITheme.TitleInk);
-            Icon(visual, "Arrow", PaperMenuIcon.Shape.Arrow, new Vector2(34f, 34f), new Vector2(456f, -49f), PaperUITheme.TitleInk);
+            label.rectTransform.anchoredPosition = new Vector2(106f, -14f);
+            Text(visual, "English", subtitle, english, 20f, new Vector2(330f, 31f), new Vector2(108f, -66f), PaperUITheme.TitleInk).characterSpacing = 2f;
+            Icon(visual, "Icon", icon, new Vector2(46f, 46f), new Vector2(33f, -33f), PaperUITheme.TitleInk);
+            Icon(visual, "Arrow", PaperMenuIcon.Shape.Arrow, new Vector2(34f, 34f), new Vector2(456f, -39f), PaperUITheme.TitleInk);
             return button;
         }
 

@@ -56,6 +56,49 @@ namespace Kitchen.EditorTools
             Apply(true, false);
         }
 
+        [MenuItem("Kitchen/UI/Apply Kitchen Typography (Fonts Only)", false, 4)]
+        public static void UpdateKitchenTypography()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+                throw new InvalidOperationException("Stop Play mode before updating UI fonts.");
+            for (int index = 0; index < SceneManager.sceneCount; index++)
+                if (SceneManager.GetSceneAt(index).isDirty)
+                    throw new InvalidOperationException("Save scene changes before updating UI fonts.");
+            SceneSetup[] setup = EditorSceneManager.GetSceneManagerSetup();
+            try
+            {
+                TMP_FontAsset font = KitchenHudFonts.Chinese;
+                Scene scene = EditorSceneManager.OpenScene(KitchenSceneGenerator.ScenePath, OpenSceneMode.Single);
+                foreach (GameObject root in scene.GetRootGameObjects())
+                {
+                    Canvas canvas = root.GetComponent<Canvas>();
+                    if (canvas == null) continue;
+                    foreach (TMP_Text label in canvas.GetComponentsInChildren<TMP_Text>(true))
+                    {
+                        label.font = font;
+                        label.fontSharedMaterial = font.material;
+                        label.fontStyle &= ~FontStyles.Bold;
+                        EditorUtility.SetDirty(label);
+                    }
+                    KitchenMachineUI machine = canvas.GetComponent<KitchenMachineUI>();
+                    if (machine != null)
+                    {
+                        machine.Configure(PaperUITheme.Rounded, font);
+                        EditorUtility.SetDirty(machine);
+                    }
+                }
+                EditorSceneManager.MarkSceneDirty(scene);
+                EditorSceneManager.SaveScene(scene);
+                AssetDatabase.SaveAssets();
+                Debug.Log("[Kitchen UI] Updated HUD fonts only; existing layout and bindings preserved.");
+            }
+            finally
+            {
+                if (Array.Exists(setup, item => item.isLoaded && item.isActive))
+                    EditorSceneManager.RestoreSceneManagerSetup(setup);
+            }
+        }
+
         private static void Apply(bool kitchen, bool menu)
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Stop Play mode before updating UI.");

@@ -61,6 +61,26 @@ namespace Kitchen.Input
 
         /// <summary>Raised when the player cancelled an interaction. No money was spent.</summary>
         public event Action CancelRequested;
+        public event Action PauseRequested;
+
+        public bool PauseMenuOpen { get; private set; }
+        private int pauseCloseFrame = -1;
+
+        public void SetPauseMenuOpen(bool open)
+        {
+            if (PauseMenuOpen && !open) pauseCloseFrame = Time.frameCount;
+            PauseMenuOpen = open;
+            moveRepeatTimer = 0f;
+            if (open) { ClearCellHighlights(); preview?.Hide(); }
+        }
+
+        public void RequestEscape()
+        {
+            if (!PauseMenuOpen && (mode != InteractionMode.Normal || RecipeMenuOpen))
+                CancelCurrentInteraction();
+            else
+                PauseRequested?.Invoke();
+        }
 
         /// <summary>Raised when the selected cooker should step one cell in a direction.</summary>
         public event Action<CookerRuntime, Vector2Int> MoveCookerRequested;
@@ -86,7 +106,7 @@ namespace Kitchen.Input
 
         public void RequestCookerRecipe(GameObject hitObject)
         {
-            if (mode != InteractionMode.Normal || PointerOverUI || RecipeMenuOpen) return;
+            if (PauseMenuOpen || mode != InteractionMode.Normal || PointerOverUI || RecipeMenuOpen) return;
             CookerView view = hitObject != null ? hitObject.GetComponentInParent<CookerView>() : null;
             if (view != null && view.Runtime != null && view.Runtime.IsPlaced)
                 CookerRecipeRequested?.Invoke(view.Runtime);
@@ -208,7 +228,7 @@ namespace Kitchen.Input
         /// <summary>Enters build mode for a cooker definition. The purchase is charged on placement.</summary>
         public void RequestBuildCooker(CookerDefinition definition)
         {
-            if (definition == null)
+            if (PauseMenuOpen || definition == null)
             {
                 return;
             }
@@ -248,7 +268,7 @@ namespace Kitchen.Input
         /// <summary>Enters cooker relocation mode for a cooker.</summary>
         public void EnterMoveCookerMode(CookerRuntime cooker)
         {
-            if (cooker == null)
+            if (PauseMenuOpen || cooker == null)
             {
                 return;
             }
@@ -272,6 +292,7 @@ namespace Kitchen.Input
         /// <summary>Enters the ingredient selection mode for a cooker.</summary>
         public void EnterSelectIngredientMode(ItemDefinition item)
         {
+            if (PauseMenuOpen) return;
             selectedIngredient = item;
             SetMode(item != null ? InteractionMode.SelectIngredient : InteractionMode.Normal);
         }
@@ -303,9 +324,14 @@ namespace Kitchen.Input
         /// Samples input once per frame, resolves what the pointer is over, then turns the result
         /// into intents. GameRuntime calls this before any manager ticks.
         /// </summary>
-        public void Tick(float deltaTime)
+        public void Tick(float deltaTime, bool allowWorldInput = true)
         {
-            if (recipeCloseFrame == Time.frameCount) return;
+            if (UnityEngine.Input.GetKeyDown(cancelKey))
+            {
+                RequestEscape();
+                return;
+            }
+            if (PauseMenuOpen || !allowWorldInput || pauseCloseFrame == Time.frameCount || recipeCloseFrame == Time.frameCount) return;
             if (worldCamera == null)
             {
                 worldCamera = Camera.main;
@@ -319,8 +345,7 @@ namespace Kitchen.Input
             PointerOverUI = IsPointerOverUIThisFrame();
 
             // 1. Cancellation always wins, in every mode.
-            if (UnityEngine.Input.GetKeyDown(cancelKey) ||
-                (UnityEngine.Input.GetKeyDown(cancelMouseButton) && (mode != InteractionMode.Normal || RecipeMenuOpen)))
+            if (UnityEngine.Input.GetKeyDown(cancelMouseButton) && (mode != InteractionMode.Normal || RecipeMenuOpen))
             {
                 CancelCurrentInteraction();
                 return;

@@ -1,0 +1,106 @@
+{
+  "title": "KITCHEN CLUB",
+  "archive_date": "2026-10-21",
+  "files": [
+    {
+      "file": "Icons/chef-hat-logo-1024.png",
+      "bytes": 61537,
+      "sha256": "33d56e9428c802507d99e854cdf088825b18de2ff4fc03cff9105ee9b3ba76e4",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGB"
+    },
+    {
+      "file": "Icons/chef-hat-logo-512.png",
+      "bytes": 30848,
+      "sha256": "5aa889e9e05e70f1b942748cb7d41463513cfe93666cc0bdae9a88068509505f",
+      "width": 512,
+      "height": 512,
+      "mode": "RGB"
+    },
+    {
+      "file": "Promotion/kitchen-club-no-logo-landscape-2560x1440.png",
+      "bytes": 418184,
+      "sha256": "91785970d3c9b988cd6dca61e8390e7b2fd7ae5083e716772aa0c05061015c74",
+      "width": 2560,
+      "height": 1440,
+      "mode": "RGB"
+    },
+    {
+      "file": "Promotion/kitchen-club-no-logo-portrait-1440x2560.png",
+      "bytes": 388970,
+      "sha256": "21502029f10c0a31bb6e3ae15cab5394fc9172f644bd0b967292f0eaf61f40bb",
+      "width": 1440,
+      "height": 2560,
+      "mode": "RGB"
+    },
+    {
+      "file": "Promotion/kitchen-club-store-cover-2560x1440.png",
+      "bytes": 360765,
+      "sha256": "754e11c43c210db46281a0f0d7a0afe1b0dce6f1a04a62bc6366daf18e6a5b2a",
+      "width": 2560,
+      "height": 1440,
+      "mode": "RGB"
+    },
+    {
+      "file": "README.md",
+      "bytes": 3460,
+      "sha256": "6feed89e1866882b16579253db4d0b44650b250e2c112ec2a92450c5483d8021"
+    },
+    {
+      "file": "Sources/chef-hat-logo.svg",
+      "bytes": 3611,
+      "sha256": "94faeb1ce1cd21472f850f4ce765c189492b2fde90b2aec48ce8825119edcabc"
+    },
+    {
+      "file": "TapTapCovers/export-manifest.json",
+      "bytes": 837,
+      "sha256": "8aad890bc58c788136722e8e053a93c30be7ef5c2b6034824fe117b3e8d3d9b9"
+    },
+    {
+      "file": "TapTapCovers/kitchen-club-taptap-landscape-1840x860.png",
+      "bytes": 166811,
+      "sha256": "a4b3f9970e92a7d3a1485eff4213be9cecac94c91c14a8c5a20e6b65c7b4dad5",
+      "width": 1840,
+      "height": 860,
+      "mode": "RGB"
+    },
+    {
+      "file": "TapTapCovers/kitchen-club-taptap-landscape-460x215.png",
+      "bytes": 37714,
+      "sha256": "e1057b99020d3aac3d76f71114fefd8cc9355e19c7fae8fe6d7610e108620473",
+      "width": 460,
+      "height": 215,
+      "mode": "RGB"
+    },
+    {
+      "file": "TapTapCovers/kitchen-club-taptap-portrait-1200x1800.png",
+      "bytes": 197085,
+      "sha256": "f9d59389659d4844b07161a6d3a2f0c03da029a1359fee626f214d8fe3e35ba1",
+      "width": 1200,
+      "height": 1800,
+      "mode": "RGB"
+    },
+    {
+      "file": "TapTapCovers/kitchen-club-taptap-portrait-600x900.png",
+      "bytes": 96016,
+      "sha256": "40067d1182695cf5a5cdc1a0e18e8b75cb933314135545c4968577739910a35f",
+      "width": 600,
+      "height": 900,
+      "mode": "RGB"
+    },
+    {
+      "file": "TapTapCovers/README.md",
+      "bytes": 1525,
+      "sha256": "f8490ef87650def1f51a70ef2b889f531301204abdd5f80d33cda42bfbad3b0c"
+    },
+    {
+      "file": "Wallpaper/kitchen-club-library-wallpaper-3840x1240.png",
+      "bytes": 295321,
+      "sha256": "75a404670370265b0223c9995f785984767a162da97a83158a7fcb9cfebc912f",
+      "width": 3840,
+      "height": 1240,
+      "mode": "RGB"
+    }
+  ]
+}
